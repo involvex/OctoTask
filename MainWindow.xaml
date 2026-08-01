@@ -231,6 +231,10 @@
             <Button x:Name="UninstallHookButton" Style="{StaticResource ToolbarButton}"
                     Command="{Binding UninstallHookCommand}"
                     Content="✕ Remove Hook"/>
+            <Button x:Name="RestoreHookButton" Style="{StaticResource ToolbarButton}"
+                    Command="{Binding RestoreHookCommand}"
+                    Content="↺ Restore TM"
+                    IsEnabled="{Binding CanRestore}"/>
             <Separator Margin="8,0"/>
             <Button x:Name="KillButton" Style="{StaticResource DangerButton}"
                     Command="{Binding KillProcessCommand}"

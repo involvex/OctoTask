@@ -29,6 +29,7 @@ namespace OctoTask.UI.ViewModels
         public ICommand RefreshCommand { get; }
         public ICommand InstallHookCommand { get; }
         public ICommand UninstallHookCommand { get; }
+        public ICommand RestoreHookCommand { get; }
         public ICommand KillProcessCommand { get; }
         public ICommand ToggleAutoRefreshCommand { get; }
 
@@ -62,6 +63,10 @@ namespace OctoTask.UI.ViewModels
         }
 
         public bool CanKillProcess => SelectedProcess != null && !IsBusy;
+        public bool CanRestore => TaskmgrHook.HasBackup() && !IsBusy;
+        public string BackupStatusText => TaskmgrHook.HasBackup()
+            ? "Backup available — use 'Restore' to revert Task Manager"
+            : "No backup found — install will create one";
 
         public MainViewModel()
         {
@@ -82,6 +87,7 @@ namespace OctoTask.UI.ViewModels
             RefreshCommand = new RelayCommand(_ => RefreshProcesses(), _ => !IsBusy);
             InstallHookCommand = new RelayCommand(_ => InstallHook(), _ => !IsBusy);
             UninstallHookCommand = new RelayCommand(_ => UninstallHook(), _ => !IsBusy);
+            RestoreHookCommand = new RelayCommand(_ => RestoreHook(), _ => CanRestore);
             KillProcessCommand = new RelayCommand(_ => KillSelectedProcess(), _ => CanKillProcess);
             ToggleAutoRefreshCommand = new RelayCommand(_ => IsAutoRefreshEnabled = !IsAutoRefreshEnabled);
 
@@ -132,6 +138,7 @@ namespace OctoTask.UI.ViewModels
                 if (TaskmgrHook.Install(exePath))
                 {
                     StatusText = "Task Manager hook installed successfully";
+                    OnPropertyChanged(nameof(BackupStatusText));
                 }
                 else
                 {
@@ -152,10 +159,32 @@ namespace OctoTask.UI.ViewModels
                 if (TaskmgrHook.Uninstall())
                 {
                     StatusText = "Task Manager hook removed successfully";
+                    OnPropertyChanged(nameof(BackupStatusText));
                 }
                 else
                 {
                     StatusText = "Failed to remove hook — are you running as administrator?";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Error: {ex.Message}";
+            }
+        }
+
+        private void RestoreHook()
+        {
+            try
+            {
+                StatusText = "Restoring original Task Manager...";
+                if (TaskmgrHook.Restore())
+                {
+                    StatusText = "Task Manager restored successfully";
+                    OnPropertyChanged(nameof(BackupStatusText));
+                }
+                else
+                {
+                    StatusText = "Failed to restore — are you running as administrator?";
                 }
             }
             catch (Exception ex)
@@ -171,7 +200,6 @@ namespace OctoTask.UI.ViewModels
 
             if (ProcessInterop.KillProcess(SelectedProcess.Pid))
             {
-                // Remove from UI
                 Processes.Remove(SelectedProcess);
                 SelectedProcess = null;
                 StatusText = "Process terminated";
