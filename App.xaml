@@ -1,0 +1,24 @@
+﻿<Application x:Class="OctoTask.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:OctoTask"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="BgBrush" Color="#0d1117"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#c9d1d9"/>
+
+        <Style TargetType="Window">
+            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        </Style>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        </Style>
+    </Application.Resources>
+</Application>

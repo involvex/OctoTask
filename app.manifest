@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Application manifest for OctoTask.
+  Windows will read this file at app startup.
+-->
+
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asm3="urn:schemas-microsoft-com:asm.v3">
+  <assemblyIdentity
+      type="win32"
+      name="OctoTask"
+      version="1.0.0.0"
+      processorArchitecture="*"/>
+
+  <!-- Enable Windows 10/11 visual styles -->
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="65b7f9fdab635877"
+        language="*"/>
+    </dependentAssembly>
+  </dependency>
+
+  <!-- UAC: require administrator for HKLM registry writes -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- Windows 10/11 compatibility -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <supportedOS Id="{8e0f7a12-bfb3-4360-a709-b610e1e0d3ee}"/> <!-- Windows 10 -->
+      <supportedOS Id="{1f676c76-8098-4cc2-971e-f75299c6c4de}"/> <!-- Windows 11 -->
+    </application>
+  </compatibility>
+
+  <!-- DPI / long-path awareness -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <dpiAwareness xmlns="urn:schemas-microsoft-com:asm.v2">PerMonitorV2, PerMonitor</dpiAwareness>
+    <longPathAware xmlns="urn:schemas-microsoft-com:asm.v2" supported="true"/>
+  </application>
+
+</assembly>
