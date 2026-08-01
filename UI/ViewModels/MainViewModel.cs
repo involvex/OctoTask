@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Data;
@@ -23,6 +26,10 @@ namespace OctoTask.UI.ViewModels
 
         private string _currentSortColumn = string.Empty;
         private int _sortClickCount;
+
+        // CPU sampling: store last TotalProcessorTime per PID
+        private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes = new();
+        private readonly Stopwatch _cpuStopwatch = new();
 
         public ObservableCollection<ProcessInfo> Processes { get; }
 
@@ -72,6 +79,9 @@ namespace OctoTask.UI.ViewModels
         {
             Processes = new ObservableCollection<ProcessInfo>();
 
+            // Start the CPU stopwatch
+            _cpuStopwatch.Start();
+
             // 5-second auto-refresh timer
             _refreshTimer = new DispatcherTimer
             {
@@ -105,7 +115,45 @@ namespace OctoTask.UI.ViewModels
                 IsBusy = true;
                 StatusText = "Refreshing processes...";
 
+                var elapsed = _cpuStopwatch.Elapsed;
                 var processList = await Task.Run(() => ProcessInterop.GetAllProcesses());
+
+                // Calculate CPU for each process
+                int processorCount = Environment.ProcessorCount;
+                var newCpuTimes = new Dictionary<int, TimeSpan>();
+                var processLookup = processList.ToDictionary(p => p.Pid, p => p);
+
+                // Refresh process handles for CPU sampling
+                foreach (Process proc in Process.GetProcesses().Where(p => !p.HasExited))
+                {
+                    try
+                    {
+                        TimeSpan currentCpu = proc.TotalProcessorTime;
+                        newCpuTimes[proc.Id] = currentCpu;
+
+                        if (_lastCpuTimes.TryGetValue(proc.Id, out TimeSpan lastCpu) && elapsed.TotalSeconds > 0)
+                        {
+                            double cpuTimeDeltaMs = (currentCpu - lastCpu).TotalMilliseconds;
+                            double wallClockMs = elapsed.TotalMilliseconds;
+                            double cpuPercent = Math.Max(0, Math.Min(100, (cpuTimeDeltaMs / wallClockMs / processorCount) * 100));
+
+                            if (processLookup.TryGetValue(proc.Id, out ProcessInfo? info) && info != null)
+                            {
+                                info.CpuPercentage = cpuPercent;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Process may have exited
+                    }
+                }
+
+                _lastCpuTimes.Clear();
+                foreach (var kvp in newCpuTimes)
+                    _lastCpuTimes[kvp.Key] = kvp.Value;
+
+                _cpuStopwatch.Restart();
 
                 Processes.Clear();
                 foreach (var p in processList.OrderBy(p => p.ProcessName))
@@ -201,6 +249,7 @@ namespace OctoTask.UI.ViewModels
             if (ProcessInterop.KillProcess(SelectedProcess.Pid))
             {
                 Processes.Remove(SelectedProcess);
+                _lastCpuTimes.TryRemove(SelectedProcess.Pid, out _);
                 SelectedProcess = null;
                 StatusText = "Process terminated";
             }

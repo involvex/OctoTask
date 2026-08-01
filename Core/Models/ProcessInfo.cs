@@ -7,6 +7,7 @@ namespace OctoTask.Core.Models
     public class ProcessInfo : INotifyPropertyChanged
     {
         private long _workingSetBytes;
+        private double _cpuPercentage;
 
         public int Pid { get; set; }
         public string ProcessName { get; set; } = string.Empty;
@@ -25,6 +26,19 @@ namespace OctoTask.Core.Models
         }
 
         public string WorkingSetDisplay => FormatBytes(_workingSetBytes);
+
+        public double CpuPercentage
+        {
+            get => _cpuPercentage;
+            set
+            {
+                _cpuPercentage = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CpuPercentageDisplay));
+            }
+        }
+
+        public string CpuPercentageDisplay => $"{_cpuPercentage:F1}%";
 
         private static string FormatBytes(long bytes)
         {

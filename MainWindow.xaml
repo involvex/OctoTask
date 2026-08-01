@@ -262,6 +262,10 @@
                                     Binding="{Binding WorkingSetDisplay}"
                                     SortMemberPath="WorkingSetBytes"
                                     Width="100"/>
+                <DataGridTextColumn Header="CPU"
+                                    Binding="{Binding CpuPercentageDisplay}"
+                                    SortMemberPath="CpuPercentage"
+                                    Width="60"/>
                 <DataGridTextColumn Header="Executable Path"
                                     Binding="{Binding ExecutablePath}"
                                     SortMemberPath="ExecutablePath"
