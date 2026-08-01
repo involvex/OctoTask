@@ -23,6 +23,7 @@ namespace OctoTask.UI.ViewModels
         private bool _isAutoRefreshEnabled = true;
         private bool _isBusy;
         private string _statusText = "Ready";
+        private string _filterText = string.Empty;
 
         private string _currentSortColumn = string.Empty;
         private int _sortClickCount;
@@ -39,6 +40,7 @@ namespace OctoTask.UI.ViewModels
         public ICommand RestoreHookCommand { get; }
         public ICommand KillProcessCommand { get; }
         public ICommand ToggleAutoRefreshCommand { get; }
+        public ICommand ClearFilterCommand { get; }
 
         public ProcessInfo? SelectedProcess
         {
@@ -75,6 +77,21 @@ namespace OctoTask.UI.ViewModels
             ? "Backup available — use 'Restore' to revert Task Manager"
             : "No backup found — install will create one";
 
+        public string FilterText
+        {
+            get => _filterText;
+            set
+            {
+                _filterText = value ?? string.Empty;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanClearFilter));
+                _collectionView.Filter = string.IsNullOrWhiteSpace(_filterText) ? null : FilterPredicate;
+                _collectionView.Refresh();
+            }
+        }
+
+        public bool CanClearFilter => !string.IsNullOrEmpty(_filterText);
+
         public MainViewModel()
         {
             Processes = new ObservableCollection<ProcessInfo>();
@@ -100,9 +117,26 @@ namespace OctoTask.UI.ViewModels
             RestoreHookCommand = new RelayCommand(_ => RestoreHook(), _ => CanRestore);
             KillProcessCommand = new RelayCommand(_ => KillSelectedProcess(), _ => CanKillProcess);
             ToggleAutoRefreshCommand = new RelayCommand(_ => IsAutoRefreshEnabled = !IsAutoRefreshEnabled);
+            ClearFilterCommand = new RelayCommand(_ => FilterText = string.Empty, _ => CanClearFilter);
 
             _currentSortColumn = nameof(ProcessInfo.ProcessName);
             _sortClickCount = 1;
+        }
+
+        private bool FilterPredicate(object? obj)
+        {
+            if (obj is not ProcessInfo process)
+                return false;
+
+            string filter = _filterText ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(filter))
+                return true;
+
+            string lowerFilter = filter.ToLowerInvariant();
+            return process.ProcessName.ToLowerInvariant().Contains(lowerFilter) ||
+                   process.Pid.ToString().Contains(filter) ||
+                   (process.ExecutablePath?.ToLowerInvariant().Contains(lowerFilter) ?? false) ||
+                   (process.CommandLine?.ToLowerInvariant().Contains(lowerFilter) ?? false);
         }
 
         public async void RefreshProcesses()
