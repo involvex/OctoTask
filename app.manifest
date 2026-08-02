@@ -4,7 +4,7 @@
   Windows will read this file at app startup.
 -->
 
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asm3="urn:schemas-microsoft-com:asm.v3">
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asm2="urn:schemas-microsoft-com:asm.v2" xmlns:asm3="urn:schemas-microsoft-com:asm.v3">
   <assemblyIdentity
       type="win32"
       name="OctoTask"
@@ -42,9 +42,9 @@
   </compatibility>
 
   <!-- DPI / long-path awareness -->
-  <application xmlns="urn:schemas-microsoft-com:asm.v3">
-    <dpiAwareness xmlns="urn:schemas-microsoft-com:asm.v2">PerMonitorV2, PerMonitor</dpiAwareness>
-    <longPathAware xmlns="urn:schemas-microsoft-com:asm.v2" supported="true"/>
+  <application xmlns="urn:schemas-microsoft-com:asm.v1">
+    <asm2:dpiAwareness xmlns:asm2="urn:schemas-microsoft-com:asm.v2">PerMonitorV2, PerMonitor</asm2:dpiAwareness>
+    <asm2:longPathAware xmlns:asm2="urn:schemas-microsoft-com:asm.v2" supported="true"/>
   </application>
 
 </assembly>

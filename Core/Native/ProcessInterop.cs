@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,6 +17,9 @@ namespace OctoTask.Core.Native
         private const int PROCESS_VM_READ = 0x0010;
         private const int PROCESS_TERMINATE = 0x0001;
         private const int ProcessBasicInformationClass = 0;
+        private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        private const uint TOKEN_QUERY = 0x0008;
+        private const uint SE_PRIVILEGE_ENABLED = 0x00000002;
 
         #endregion
 
@@ -42,9 +46,14 @@ namespace OctoTask.Core.Native
         private struct RtlUserProcessParameters
         {
             public uint MaximumNumberOfCommandLineParameters;
-            // At offset 0x10 (x86) / 0x20 (x64) comes CommandLine (UNICODE_STRING)
-            // At offset 0x30 (x86) / 0x50 (x64) comes ImagePathName (UNICODE_STRING)
-            // We read these manually via offsets rather than struct layout
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct TokenPrivileges
+        {
+            public long PrivilegeCount;
+            public long Luid;
+            public long Attributes;
         }
 
         #endregion
@@ -85,6 +94,26 @@ namespace OctoTask.Core.Native
         private static extern uint GetModuleFileNameEx(IntPtr hProcess, IntPtr hModule,
             [Out] StringBuilder lpBaseName, int nSize);
 
+        [DllImport("advapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess,
+            out IntPtr ProcessToken);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool LookupPrivilegeValue(string lpSystemName, string lpName,
+            out long lpLuid);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool AdjustTokenPrivileges(IntPtr TokenHandle,
+            [MarshalAs(UnmanagedType.Bool)] bool DisableAllPrivileges,
+            ref TokenPrivileges NewState, int BufferLength,
+            IntPtr PreviousState, IntPtr ReturnLength);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetCurrentProcess();
+
         #endregion
 
         #region PEB Offsets
@@ -95,8 +124,44 @@ namespace OctoTask.Core.Native
         // RTL_USER_PROCESS_PARAMETERS.CommandLine is at offset 0x40 on x64, 0x28 on x86
         private static readonly int RtlCommandLineOffset = IntPtr.Size == 8 ? 0x40 : 0x28;
 
+        // RTL_USER_PROCESS_PARAMETERS.Environment (pointer to env block) is at offset 0x80 on x64, 0x48 on x86
+        private static readonly int RtlEnvironmentOffset = IntPtr.Size == 8 ? 0x80 : 0x48;
+
         // RTL_USER_PROCESS_PARAMETERS.ImagePathName is at offset 0x50 on x64, 0x30 on x86
         private static readonly int RtlImagePathOffset = IntPtr.Size == 8 ? 0x50 : 0x30;
+
+        #endregion
+
+        #region Private Methods
+
+        private static void EnableDebugPrivilege()
+        {
+            try
+            {
+                if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES, out IntPtr token))
+                    return;
+
+                if (!LookupPrivilegeValue("", "SeDebugPrivilege", out long luid))
+                {
+                    CloseHandle(token);
+                    return;
+                }
+
+                var tp = new TokenPrivileges
+                {
+                    PrivilegeCount = 1,
+                    Luid = luid,
+                    Attributes = SE_PRIVILEGE_ENABLED
+                };
+
+                AdjustTokenPrivileges(token, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+                CloseHandle(token);
+            }
+            catch
+            {
+                // Silently fail — we may not have the privilege
+            }
+        }
 
         #endregion
 
@@ -104,6 +169,7 @@ namespace OctoTask.Core.Native
 
         public static List<ProcessInfo> GetAllProcesses()
         {
+            EnableDebugPrivilege();
             var processes = new List<ProcessInfo>();
             var procArray = Process.GetProcesses();
 
@@ -124,8 +190,184 @@ namespace OctoTask.Core.Native
             return processes;
         }
 
+        public static ProcessDetails? LoadProcessDetails(int pid)
+        {
+            try
+            {
+                EnableDebugPrivilege();
+                using var proc = Process.GetProcessById(pid);
+                if (proc.HasExited)
+                    return null;
+
+                var details = new ProcessDetails();
+
+                // --- Basic process info ---
+                try { details.StartTime = proc.StartTime.ToString("yyyy-MM-dd HH:mm:ss"); } catch { details.StartTime = "N/A"; }
+                try { details.RunningTime = (DateTime.Now - proc.StartTime).ToString(@"dd\.hh\:mm\:ss"); } catch { details.RunningTime = "N/A"; }
+                try { details.Threads = proc.Threads.Count.ToString(); } catch { details.Threads = "N/A"; }
+                try { details.Handles = proc.HandleCount.ToString(); } catch { details.Handles = "N/A"; }
+                try { details.Priority = proc.PriorityClass.ToString(); } catch { details.Priority = "N/A"; }
+                try { details.IsResponding = proc.Responding; } catch { details.IsResponding = false; }
+                try { details.Session = proc.SessionId.ToString(); } catch { details.Session = "N/A"; }
+
+                // --- Parent process ---
+                try
+                {
+                    using var searcher = new ManagementObjectSearcher(
+                        $"SELECT ParentProcessId FROM Win32_Process WHERE ProcessId = {pid}");
+                    foreach (ManagementObject mo in searcher.Get())
+                    {
+                        var parentPid = Convert.ToInt32(mo["ParentProcessId"] ?? 0);
+                        details.ParentId = parentPid;
+                        try
+                        {
+                            using var parent = Process.GetProcessById(parentPid);
+                            details.ParentProcess = parent.ProcessName;
+                        }
+                        catch
+                        {
+                            details.ParentProcess = parentPid > 0 ? $"PID {parentPid}" : "N/A";
+                        }
+                        break;
+                    }
+                }
+                catch { details.ParentProcess = "N/A"; }
+
+                // --- User context (owner) ---
+                try
+                {
+                    using var searcher = new ManagementObjectSearcher(
+                        $"SELECT * FROM Win32_Process WHERE ProcessId = {pid}");
+                    foreach (ManagementObject mo in searcher.Get())
+                    {
+                        var ownerUser = mo["Owner"]?.ToString() ?? "";
+                        var ownerDomain = mo["Domain"]?.ToString() ?? "";
+                        details.ProcessOwner = string.IsNullOrEmpty(ownerUser) ? "N/A" : ownerUser;
+                        details.UserName = string.IsNullOrEmpty(ownerUser) ? "N/A" : ownerUser;
+                        details.Domain = string.IsNullOrEmpty(ownerDomain) ? "N/A" : ownerDomain;
+                        break;
+                    }
+                }
+                catch { details.ProcessOwner = "N/A"; details.UserName = "N/A"; details.Domain = "N/A"; }
+
+                // --- File version info ---
+                try
+                {
+                    string filePath = proc.MainModule?.FileName ?? "";
+                    if (!string.IsNullOrEmpty(filePath))
+                    {
+                        var fv = FileVersionInfo.GetVersionInfo(filePath);
+                        details.Description = fv.FileDescription ?? "N/A";
+                        details.Company = fv.CompanyName ?? "N/A";
+                        details.Version = fv.FileVersion ?? "N/A";
+                        details.FileVersion = fv.FileVersion ?? "N/A";
+                        details.ProductVersion = fv.ProductVersion ?? "N/A";
+                        details.WorkingDirectory = System.IO.Path.GetDirectoryName(filePath) ?? "N/A";
+                    }
+                }
+                catch { /* leave defaults */ }
+
+                // --- Loaded modules ---
+                try
+                {
+                    var moduleList = new List<ModuleInfo>();
+                    foreach (ProcessModule module in proc.Modules)
+                    {
+                        try
+                        {
+                            var fvi = FileVersionInfo.GetVersionInfo(module.FileName);
+                            moduleList.Add(new ModuleInfo
+                            {
+                                Name = module.ModuleName,
+                                FileName = module.FileName,
+                                Version = fvi.FileVersion ?? "",
+                                Size = module.ModuleMemorySize
+                            });
+                        }
+                        catch
+                        {
+                            moduleList.Add(new ModuleInfo
+                            {
+                                Name = module.ModuleName,
+                                FileName = module.FileName
+                            });
+                        }
+                    }
+                    details.Modules = moduleList;
+                }
+                catch { /* leave null */ }
+
+                // --- Environment variables ---
+                try
+                {
+                    var envList = new List<string>();
+
+                    // Try to read environment variables from the target process's PEB
+                    IntPtr hEnvProcess = OpenProcess(
+                        (uint)(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ),
+                        false, pid);
+
+                    if (hEnvProcess != IntPtr.Zero)
+                    {
+                        try
+                        {
+                            // Get ProcessBasicInformation
+                            var pbi = new ProcessBasicInformation();
+                            int status = NtQueryInformationProcess(hEnvProcess, ProcessBasicInformationClass,
+                                out pbi, Marshal.SizeOf<ProcessBasicInformation>(), IntPtr.Zero);
+
+                            if (status == 0 && pbi.Reserved1 != IntPtr.Zero)
+                            {
+                                    // Read PEB -> ProcessParameters pointer
+                                 if (ReadIntPtrFromMemory(hEnvProcess, pbi.Reserved1 + PebProcessParametersOffset, out IntPtr pParams) && pParams != IntPtr.Zero)
+                                 {
+                                     // RTL_USER_PROCESS_PARAMETERS.Environment pointer
+                                     if (ReadIntPtrFromMemory(hEnvProcess, pParams + RtlEnvironmentOffset, out IntPtr envBlockPtr) && envBlockPtr != IntPtr.Zero)
+                                     {
+                                         // Read the environment block (it's a sequence of null-terminated strings, double-null at end)
+                                         var envData = ReadEnvironmentBlockFromMemory(hEnvProcess, envBlockPtr);
+                                        foreach (var kv in envData)
+                                            envList.Add($"{kv.Key}={kv.Value}");
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Fall through to current process env vars
+                        }
+                        finally
+                        {
+                            CloseHandle(hEnvProcess);
+                        }
+                    }
+
+                    // Fallback: show current process environment variables if target could not be read
+                    if (envList.Count == 0)
+                    {
+                        envList.Add("NOTE: Showing current process environment (access to target env denied)");
+                        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+                        {
+                            envList.Add($"{entry.Key}={entry.Value}");
+                        }
+                    }
+
+                    details.EnvironmentVariables = envList;
+                }
+                catch { /* leave null */ }
+
+                return details;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+
         public static bool KillProcess(int pid)
         {
+            EnableDebugPrivilege();
             try
             {
                 using var proc = Process.GetProcessById(pid);
@@ -352,9 +594,60 @@ namespace OctoTask.Core.Native
                     ProcessName = proc.ProcessName ?? "Unknown",
                     ExecutablePath = string.Empty,
                     CommandLine = string.Empty,
-                    WorkingSetBytes = 0,
-                };
+                     WorkingSetBytes = 0,
+                 };
+             }
+        }
+
+        private static Dictionary<string, string> ReadEnvironmentBlockFromMemory(IntPtr hProcess, IntPtr envBlockPtr)
+        {
+            var result = new Dictionary<string, string>();
+            try
+            {
+                // Read the environment block: it's a sequence of null-terminated strings
+                // terminated by an empty (double null) string.
+                byte[] buffer = new byte[65536];
+                IntPtr bytesRead;
+
+                if (!ReadProcessMemory(hProcess, envBlockPtr, buffer, buffer.Length, out bytesRead))
+                    return result;
+
+                int totalRead = (int)bytesRead;
+                int pos = 0;
+
+                while (pos < totalRead)
+                {
+                    // Each entry is a null-terminated Unicode string
+                    int start = pos;
+                    while (pos < totalRead - 1 && buffer[pos] != 0)
+                        pos += 2;
+
+                    // Check for double-null terminator (end of environment block)
+                    if (pos >= totalRead - 1 || (pos + 1 < totalRead && buffer[pos + 2] == 0))
+                        break;
+
+                    int len = pos - start;
+                    if (len > 0)
+                    {
+                        string entry = Encoding.Unicode.GetString(buffer, start, len);
+                        int sep = entry.IndexOf('=');
+                        if (sep > 0)
+                        {
+                            string key = entry.Substring(0, sep);
+                            string value = entry.Substring(sep + 1);
+                            result[key] = value;
+                        }
+                    }
+
+                    pos += 2; // skip the null terminator
+                }
             }
+            catch
+            {
+                // Return whatever we have
+            }
+
+            return result;
         }
 
         #endregion

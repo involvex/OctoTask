@@ -42,10 +42,23 @@ namespace OctoTask.UI.ViewModels
         public ICommand ToggleAutoRefreshCommand { get; }
         public ICommand ClearFilterCommand { get; }
 
+        private ProcessDetails? _processDetails;
+
+        public ProcessDetails? ProcessDetails
+        {
+            get => _processDetails;
+            set { _processDetails = value; OnPropertyChanged(); }
+        }
+
         public ProcessInfo? SelectedProcess
         {
             get => _selectedProcess;
-            set { _selectedProcess = value; OnPropertyChanged(); }
+            set
+            {
+                _selectedProcess = value;
+                OnPropertyChanged();
+                _ = LoadDetailsAsync(value?.Pid);
+            }
         }
 
         public bool IsAutoRefreshEnabled
@@ -158,7 +171,7 @@ namespace OctoTask.UI.ViewModels
                 var processLookup = processList.ToDictionary(p => p.Pid, p => p);
 
                 // Refresh process handles for CPU sampling
-                foreach (Process proc in Process.GetProcesses().Where(p => !p.HasExited))
+                foreach (Process proc in Process.GetProcesses().Where(p => { try { return !p.HasExited; } catch { return false; } }))
                 {
                     try
                     {
@@ -268,6 +281,32 @@ namespace OctoTask.UI.ViewModels
                 {
                     StatusText = "Failed to restore — are you running as administrator?";
                 }
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Error: {ex.Message}";
+            }
+        }
+
+        private async Task LoadDetailsAsync(int? pid)
+        {
+            if (pid == null)
+            {
+                ProcessDetails = null;
+                return;
+            }
+
+            ProcessDetails = null;
+            StatusText = "Loading process details...";
+
+            try
+            {
+                var details = await Task.Run(() => ProcessInterop.LoadProcessDetails(pid.Value));
+                ProcessDetails = details;
+
+                StatusText = details != null
+                    ? $"Loaded details for PID {pid}"
+                    : $"Could not load details for PID {pid}";
             }
             catch (Exception ex)
             {
