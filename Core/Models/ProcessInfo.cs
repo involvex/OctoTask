@@ -9,6 +9,8 @@ namespace OctoTask.Core.Models
     {
         private long _workingSetBytes;
         private double _cpuPercentage;
+        private TimeSpan _totalProcessorTime;
+        private double _workingSetPercentage;
         private ProcessDetails? _details;
 
         public int Pid { get; set; }
@@ -27,7 +29,27 @@ namespace OctoTask.Core.Models
             }
         }
 
-        public string WorkingSetDisplay => FormatBytes(_workingSetBytes);
+        public double WorkingSetPercentage
+        {
+            get => _workingSetPercentage;
+            set
+            {
+                _workingSetPercentage = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(WorkingSetDisplay));
+            }
+        }
+
+        public string WorkingSetDisplay
+        {
+            get
+            {
+                string bytes = FormatBytes(_workingSetBytes);
+                if (_workingSetPercentage > 0)
+                    return $"{bytes} ({_workingSetPercentage:F1}%)";
+                return bytes;
+            }
+        }
 
         public double CpuPercentage
         {
@@ -40,7 +62,25 @@ namespace OctoTask.Core.Models
             }
         }
 
-        public string CpuPercentageDisplay => $"{_cpuPercentage:F1}%";
+        public TimeSpan TotalProcessorTime
+        {
+            get => _totalProcessorTime;
+            set
+            {
+                _totalProcessorTime = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CpuPercentageDisplay));
+            }
+        }
+
+        public string CpuPercentageDisplay
+        {
+            get
+            {
+                string cpuTime = FormatTime(_totalProcessorTime);
+                return $"{_cpuPercentage:F1}% ({cpuTime})";
+            }
+        }
 
         public ProcessDetails? Details
         {
@@ -57,6 +97,15 @@ namespace OctoTask.Core.Models
             if (bytes < 1024 * 1024 * 1024)
                 return $"{bytes / (1024.0 * 1024):F1} MB";
             return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+        }
+
+        private static string FormatTime(TimeSpan ts)
+        {
+            if (ts.TotalHours >= 1)
+                return $"{(int)ts.TotalHours}h{ts.Minutes}m";
+            if (ts.TotalMinutes >= 1)
+                return $"{ts.Minutes}m{ts.Seconds}s";
+            return $"{ts.Seconds}s";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

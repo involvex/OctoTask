@@ -27,6 +27,10 @@ namespace OctoTask.UI.ViewModels
 
         private string _currentSortColumn = string.Empty;
         private int _sortClickCount;
+        private double _systemCpuUsage;
+        private double _systemRamUsage;
+        private ulong _systemRamTotal;
+        private ulong _systemRamUsed;
 
         // CPU sampling: store last TotalProcessorTime per PID
         private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes = new();
@@ -105,6 +109,51 @@ namespace OctoTask.UI.ViewModels
 
         public bool CanClearFilter => !string.IsNullOrEmpty(_filterText);
 
+        public double SystemCpuUsage
+        {
+            get => _systemCpuUsage;
+            set { _systemCpuUsage = value; OnPropertyChanged(); }
+        }
+
+        public double SystemRamUsage
+        {
+            get => _systemRamUsage;
+            set { _systemRamUsage = value; OnPropertyChanged(); }
+        }
+
+        public ulong SystemRamTotal
+        {
+            get => _systemRamTotal;
+            set { _systemRamTotal = value; OnPropertyChanged(); }
+        }
+
+        public ulong SystemRamUsed
+        {
+            get => _systemRamUsed;
+            set { _systemRamUsed = value; OnPropertyChanged(); }
+        }
+
+        public string SystemRamDisplay
+        {
+            get
+            {
+                string used = FormatBytes((long)_systemRamUsed);
+                string total = FormatBytes((long)_systemRamTotal);
+                return $"{used} / {total} ({_systemRamUsage:F1}%)";
+            }
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes < 1024)
+                return $"{bytes} B";
+            if (bytes < 1024 * 1024)
+                return $"{bytes / 1024.0:F1} KB";
+            if (bytes < 1024 * 1024 * 1024)
+                return $"{bytes / (1024.0 * 1024):F1} MB";
+            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+        }
+
         public MainViewModel()
         {
             Processes = new ObservableCollection<ProcessInfo>();
@@ -162,6 +211,10 @@ namespace OctoTask.UI.ViewModels
                 IsBusy = true;
                 StatusText = "Refreshing processes...";
 
+                // Refresh system info for RAM percentage calculation
+                SystemInfo.Refresh();
+                ulong totalRam = SystemInfo.TotalPhysicalMemory;
+
                 var elapsed = _cpuStopwatch.Elapsed;
                 var processList = await Task.Run(() => ProcessInterop.GetAllProcesses());
 
@@ -187,7 +240,12 @@ namespace OctoTask.UI.ViewModels
                             if (processLookup.TryGetValue(proc.Id, out ProcessInfo? info) && info != null)
                             {
                                 info.CpuPercentage = cpuPercent;
+                                info.TotalProcessorTime = currentCpu;
                             }
+                        }
+                        else if (processLookup.TryGetValue(proc.Id, out ProcessInfo? info2) && info2 != null)
+                        {
+                            info2.TotalProcessorTime = currentCpu;
                         }
                     }
                     catch
@@ -201,6 +259,29 @@ namespace OctoTask.UI.ViewModels
                     _lastCpuTimes[kvp.Key] = kvp.Value;
 
                 _cpuStopwatch.Restart();
+
+                // Set RAM percentage for each process
+                ulong totalWorkingSet = 0;
+                if (totalRam > 0)
+                {
+                    foreach (var p in processList)
+                    {
+                        p.WorkingSetPercentage = (p.WorkingSetBytes / (double)totalRam) * 100;
+                        totalWorkingSet += (ulong)p.WorkingSetBytes;
+                    }
+                }
+
+                // Update system telemetry
+                SystemRamTotal = totalRam;
+                SystemRamUsed = totalWorkingSet;
+                SystemRamUsage = totalRam > 0 ? (totalWorkingSet / (double)totalRam) * 100 : 0;
+                OnPropertyChanged(nameof(SystemRamDisplay));
+
+                // Calculate system CPU usage (sum of all process CPU %)
+                double totalCpu = 0;
+                foreach (var p in processList)
+                    totalCpu += p.CpuPercentage;
+                SystemCpuUsage = Math.Min(100, totalCpu);
 
                 Processes.Clear();
                 foreach (var p in processList.OrderBy(p => p.ProcessName))

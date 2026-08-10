@@ -14,16 +14,19 @@
         FontFamily="Cascadia Mono, Consolas, Courier New">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="BgBrush" Color="#0d1117"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#161b22"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#30363d"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#c9d1d9"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#8b949e"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#656d76"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#238636"/>
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#388bfd"/>
-        <SolidColorBrush x:Key="DangerBrush" Color="#f85149"/>
-        <SolidColorBrush x:Key="DangerHoverBrush" Color="#ff7b72"/>
+        <SolidColorBrush x:Key="BgBrush" Color="#0f172a"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#1e293b"/>
+        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#273549"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#334155"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#f1f5f9"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94a3b8"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748b"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#3b82f6"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#60a5fa"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#10b981"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#f59e0b"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#ef4444"/>
+        <SolidColorBrush x:Key="DangerHoverBrush" Color="#f87171"/>
 
         <!-- Global TextBlock style -->
         <Style TargetType="TextBlock">
@@ -39,6 +42,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -46,7 +50,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4"
+                                CornerRadius="6"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter x:Name="Content"
                                               HorizontalAlignment="Center"
@@ -62,7 +66,7 @@
                                 <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Border" Property="Opacity" Value="0.5"/>
+                                <Setter TargetName="Border" Property="Opacity" Value="0.4"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -70,7 +74,7 @@
             </Setter>
         </Style>
 
-        <!-- DataGrid: dark terminal style -->
+        <!-- DataGrid: modern dark style -->
         <Style x:Key="DarkDataGrid" TargetType="DataGrid">
             <Setter Property="Background" Value="{StaticResource BgBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
@@ -85,46 +89,92 @@
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="CanUserSortColumns" Value="True"/>
+            <Setter Property="CanUserResizeColumns" Value="True"/>
+            <Setter Property="RowHeight" Value="28"/>
+            <Setter Property="VerticalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
         </Style>
 
         <!-- Column header style -->
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Grid>
+                            <Border x:Name="Border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <Thumb x:Name="PART_LeftHeaderGripper"
+                                   HorizontalAlignment="Left"
+                                   Width="4"
+                                   Cursor="SizeWE"
+                                   Background="Transparent"/>
+                            <Thumb x:Name="PART_RightHeaderGripper"
+                                   HorizontalAlignment="Right"
+                                   Width="4"
+                                   Cursor="SizeWE"
+                                   Background="Transparent"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- Row style: terminal look -->
+        <!-- Row style: modern look -->
         <Style TargetType="DataGridRow">
             <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#161b22"/>
+                    <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#1f3a5f"/>
+                    <Setter Property="Background" Value="#1e3a5f"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <!-- Cell style -->
         <Style TargetType="DataGridCell">
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="4"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="Background" Value="#1f3a5f"/>
+                    <Setter Property="Background" Value="Transparent"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -133,9 +183,65 @@
         <Style TargetType="ScrollBar">
             <Setter Property="Background" Value="{StaticResource BgBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
-            <Setter Property="Width" Value="12"/>
-            <Setter Property="Height" Value="12"/>
             <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <!-- GroupBox style -->
+        <Style TargetType="GroupBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Background="{StaticResource SurfaceAltBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1,1,1,0"
+                                    CornerRadius="6,6,0,0"
+                                    Padding="8,4">
+                                <ContentPresenter ContentSource="Header"
+                                                  RecognizesAccessKey="True"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Row="1"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="0,0,6,6">
+                                <ContentPresenter/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ProgressBar style: modern flat -->
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3"/>
+                            <Border x:Name="PART_Track" Margin="1">
+                                <Border x:Name="PART_Indicator"
+                                        HorizontalAlignment="Left"
+                                        Background="{TemplateBinding Foreground}"
+                                        CornerRadius="2"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Toolbar button style -->
@@ -152,6 +258,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -159,7 +266,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4"
+                                CornerRadius="6"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter x:Name="Content"
                                               HorizontalAlignment="Center"
@@ -172,7 +279,7 @@
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Border" Property="Opacity" Value="0.5"/>
+                                <Setter TargetName="Border" Property="Opacity" Value="0.4"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -183,13 +290,44 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- Dashboard -->
             <RowDefinition Height="Auto"/>  <!-- Toolbar -->
             <RowDefinition Height="*"/>     <!-- Main content -->
             <RowDefinition Height="Auto"/>  <!-- Status bar -->
         </Grid.RowDefinitions>
 
+        <!-- System Telemetry Dashboard -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- CPU Gauge -->
+                <TextBlock Grid.Column="0" Text="CPU" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ProgressBar Grid.Column="1" Value="{Binding SystemCpuUsage}" Maximum="100" Height="16" Background="{StaticResource BgBrush}" Foreground="{StaticResource AccentBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
+
+                <!-- RAM Gauge -->
+                <TextBlock Grid.Column="2" Text="RAM" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="16,0,8,0"/>
+                <ProgressBar Grid.Column="3" Value="{Binding SystemRamUsage}" Maximum="100" Height="16" Background="{StaticResource BgBrush}" Foreground="{StaticResource SuccessBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
+
+                <!-- System Info Text -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock FontSize="11" Foreground="{StaticResource TextMuted}">
+                        <Run Text="CPU: "/><Run Text="{Binding SystemCpuUsage, StringFormat='{}{0:F1}%', Mode=OneWay}" Foreground="{StaticResource TextSecondary}"/>
+                        <Run Text="  |  "/>
+                        <Run Text="RAM: "/><Run Text="{Binding SystemRamDisplay, Mode=OneWay}" Foreground="{StaticResource TextSecondary}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Toolbar -->
-        <ToolBar Grid.Row="0" Background="{StaticResource SurfaceBrush}" Margin="0,0,0,1">
+        <ToolBar Grid.Row="1" Background="{StaticResource SurfaceBrush}" Margin="0,0,0,1">
             <Button x:Name="RefreshButton" Style="{StaticResource ToolbarButton}"
                     Command="{Binding RefreshCommand}"
                     Content="⟳ Refresh"/>
@@ -203,18 +341,24 @@
             <Label Content="🔍 Search:"
                    Foreground="{StaticResource TextSecondary}"
                    VerticalAlignment="Center"/>
-            <TextBox x:Name="SearchBox"
-                     Width="200"
-                     Height="22"
-                     VerticalAlignment="Center"
-                     Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                     Background="{StaticResource BgBrush}"
-                     Foreground="{StaticResource TextPrimary}"
-                     BorderBrush="{StaticResource BorderBrush}"
-                     BorderThickness="1"
-                     FontFamily="Cascadia Mono, Consolas, Courier New"
-                     FontSize="12"
-                     Padding="4,2"/>
+             <TextBox x:Name="SearchBox"
+                      Width="200"
+                      Height="24"
+                      VerticalAlignment="Center"
+                      Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                      Background="{StaticResource BgBrush}"
+                      Foreground="{StaticResource TextPrimary}"
+                      BorderBrush="{StaticResource BorderBrush}"
+                      BorderThickness="1"
+                      FontFamily="Cascadia Mono, Consolas, Courier New"
+                      FontSize="12"
+                      Padding="6,2">
+                 <TextBox.Resources>
+                     <Style TargetType="Border">
+                         <Setter Property="CornerRadius" Value="4"/>
+                     </Style>
+                 </TextBox.Resources>
+             </TextBox>
             <Button x:Name="ClearFilterButton"
                     Command="{Binding ClearFilterCommand}"
                     Content="✕"
@@ -242,14 +386,14 @@
         </ToolBar>
 
         <!-- Main content: DataGrid + Details -->
-        <DockPanel Grid.Row="1">
-            <Border x:Name="DetailsPane"
-                    Background="{StaticResource SurfaceBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1,0,0,0"
-                    Visibility="{Binding ProcessDetails, Converter={x:Static conv:NullToVisibilityConverter.Instance}}"
-                    Width="450"
-                    DockPanel.Dock="Right">
+        <DockPanel Grid.Row="2">
+             <Border x:Name="DetailsPane"
+                     Background="{StaticResource SurfaceBrush}"
+                     BorderBrush="{StaticResource BorderBrush}"
+                     BorderThickness="1,0,0,0"
+                     Visibility="{Binding ProcessDetails, Converter={x:Static conv:NullToVisibilityConverter.Instance}}"
+                     Width="420"
+                     DockPanel.Dock="Right">
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
@@ -265,13 +409,14 @@
                                    Foreground="{StaticResource TextSecondary}"
                                    Margin="0,0,0,12"/>
 
-                        <!-- Basic Info Section -->
-                        <GroupBox Header="Basic Info"
-                                  Background="{StaticResource BgBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  Foreground="{StaticResource TextPrimary}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8">
+                         <!-- Basic Info Section -->
+                         <GroupBox Header="Basic Info"
+                                   Background="{StaticResource BgBrush}"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8">
                             <StackPanel Margin="8">
                                 <TextBlock Text="{Binding ProcessDetails.StartTime, StringFormat='Start Time: {0}'}"
                                            Margin="0,2"/>
@@ -290,13 +435,14 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- Process Owner -->
-                        <GroupBox Header="Process Owner"
-                                  Background="{StaticResource BgBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  Foreground="{StaticResource TextPrimary}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8">
+                         <!-- Process Owner -->
+                         <GroupBox Header="Process Owner"
+                                   Background="{StaticResource BgBrush}"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8">
                             <StackPanel Margin="8">
                                 <TextBlock Text="{Binding ProcessDetails.ProcessOwner, StringFormat='User: {0}'}"
                                            Margin="0,2"/>
@@ -305,13 +451,14 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- Parent Process -->
-                        <GroupBox Header="Parent Process"
-                                  Background="{StaticResource BgBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  Foreground="{StaticResource TextPrimary}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8">
+                         <!-- Parent Process -->
+                         <GroupBox Header="Parent Process"
+                                   Background="{StaticResource BgBrush}"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8">
                             <StackPanel Margin="8">
                                 <TextBlock Text="{Binding ProcessDetails.ParentProcess, StringFormat='Parent: {0}'}"
                                            Margin="0,2"/>
@@ -320,13 +467,14 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- File Info -->
-                        <GroupBox Header="File Information"
-                                  Background="{StaticResource BgBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  Foreground="{StaticResource TextPrimary}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8">
+                         <!-- File Info -->
+                         <GroupBox Header="File Information"
+                                   Background="{StaticResource BgBrush}"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8">
                             <StackPanel Margin="8">
                                 <TextBlock Text="{Binding ProcessDetails.Description, StringFormat='Description: {0}'}"
                                            Margin="0,2"/>
@@ -341,13 +489,14 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- Loaded Modules -->
-                        <GroupBox Header="Loaded Modules"
-                                  Background="{StaticResource BgBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  Foreground="{StaticResource TextPrimary}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8">
+                         <!-- Loaded Modules -->
+                         <GroupBox Header="Loaded Modules"
+                                   Background="{StaticResource BgBrush}"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8">
                             <Grid Margin="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -385,13 +534,14 @@
                             </Grid>
                         </GroupBox>
 
-                        <!-- Environment Variables -->
-                        <GroupBox Header="Environment Variables"
-                                  Background="{StaticResource BgBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  Foreground="{StaticResource TextPrimary}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8">
+                         <!-- Environment Variables -->
+                         <GroupBox Header="Environment Variables"
+                                   Background="{StaticResource BgBrush}"
+                                   BorderBrush="{StaticResource BorderBrush}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8">
                             <Grid Margin="4">
                                 <ListBox ItemsSource="{Binding ProcessDetails.EnvironmentVariables}"
                                          MaxHeight="150"
@@ -425,19 +575,40 @@
                     <DataGridTextColumn Header="PID"
                                         Binding="{Binding Pid}"
                                         SortMemberPath="Pid"
-                                        Width="70"/>
+                                        Width="70">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="4,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
                     <DataGridTextColumn Header="Process"
                                         Binding="{Binding ProcessName}"
                                         SortMemberPath="ProcessName"
                                         Width="180"/>
                     <DataGridTextColumn Header="RAM"
-                                        Binding="{Binding WorkingSetDisplay}"
+                                        Binding="{Binding WorkingSetDisplay, Mode=OneWay}"
                                         SortMemberPath="WorkingSetBytes"
-                                        Width="100"/>
+                                        Width="150">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="4,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
                     <DataGridTextColumn Header="CPU"
-                                        Binding="{Binding CpuPercentageDisplay}"
+                                        Binding="{Binding CpuPercentageDisplay, Mode=OneWay}"
                                         SortMemberPath="CpuPercentage"
-                                        Width="60"/>
+                                        Width="120">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="4,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
                     <DataGridTextColumn Header="Executable Path"
                                         Binding="{Binding ExecutablePath}"
                                         SortMemberPath="ExecutablePath"
@@ -451,15 +622,18 @@
         </DockPanel>
 
         <!-- Status bar -->
-        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
-            <StatusBar Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextSecondary}" BorderThickness="0">
+        <Border Grid.Row="3" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StatusBar Background="Transparent" Foreground="{StaticResource TextSecondary}" BorderThickness="0" Padding="8,4">
                 <StatusBarItem>
-                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="11"/>
                 </StatusBarItem>
                 <StatusBarItem HorizontalAlignment="Right">
-                    <TextBlock Text="{Binding Processes.Count, StringFormat='{}{0} processes'}"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextMuted}"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextMuted}">
+                        <Run Text="{Binding Processes.Count, StringFormat='{}{0} processes', Mode=OneWay}"/>
+                        <Run Text="  |  "/>
+                        <Run Text="CPU: "/><Run Text="{Binding SystemCpuUsage, StringFormat='{}{0:F1}%', Mode=OneWay}" Foreground="{StaticResource TextSecondary}"/>
+                        <Run Text="  RAM: "/><Run Text="{Binding SystemRamUsage, StringFormat='{}{0:F1}%', Mode=OneWay}" Foreground="{StaticResource TextSecondary}"/>
+                    </TextBlock>
                 </StatusBarItem>
             </StatusBar>
         </Border>
