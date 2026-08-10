@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Management;
 using System.Windows.Threading;
 using OctoTask.Core.Models;
 using OctoTask.Core.Native;
@@ -32,12 +34,20 @@ namespace OctoTask.UI.ViewModels
         private double _systemRamUsage;
         private ulong _systemRamTotal;
         private ulong _systemRamUsed;
+        private bool _isTreeView;
 
         // CPU sampling: store last TotalProcessorTime per PID
         private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes = new();
         private readonly Stopwatch _cpuStopwatch = new();
 
         public ObservableCollection<ProcessInfo> Processes { get; }
+        public ObservableCollection<ProcessInfo> ProcessTree { get; } = new();
+
+        public bool IsTreeView
+        {
+            get => _isTreeView;
+            set { _isTreeView = value; OnPropertyChanged(); }
+        }
 
         public ICommand RefreshCommand { get; }
         public ICommand InstallHookCommand { get; }
@@ -46,6 +56,11 @@ namespace OctoTask.UI.ViewModels
         public ICommand KillProcessCommand { get; }
         public ICommand ToggleAutoRefreshCommand { get; }
         public ICommand ClearFilterCommand { get; }
+        public ICommand ToggleViewCommand { get; }
+        public ICommand SuspendProcessCommand { get; }
+        public ICommand ResumeProcessCommand { get; }
+        public ICommand ExportCsvCommand { get; }
+        public ICommand ExportJsonCommand { get; }
         public ICommand OpenTraySettingsCommand { get; }
 
         private ProcessDetails? _processDetails;
@@ -182,6 +197,11 @@ namespace OctoTask.UI.ViewModels
             KillProcessCommand = new RelayCommand(_ => KillSelectedProcess(), _ => CanKillProcess);
             ToggleAutoRefreshCommand = new RelayCommand(_ => IsAutoRefreshEnabled = !IsAutoRefreshEnabled);
             ClearFilterCommand = new RelayCommand(_ => FilterText = string.Empty, _ => CanClearFilter);
+            ToggleViewCommand = new RelayCommand(_ => IsTreeView = !IsTreeView);
+            SuspendProcessCommand = new RelayCommand(_ => SuspendSelectedProcess(), _ => CanKillProcess);
+            ResumeProcessCommand = new RelayCommand(_ => ResumeSelectedProcess(), _ => CanKillProcess);
+            ExportCsvCommand = new RelayCommand(_ => ExportProcesses("csv"));
+            ExportJsonCommand = new RelayCommand(_ => ExportProcesses("json"));
             OpenTraySettingsCommand = new RelayCommand(_ =>
             {
                 var win = new TrayIconSettingsWindow(Core.Settings.AppSettings.Load());
@@ -297,6 +317,8 @@ namespace OctoTask.UI.ViewModels
                 Processes.Clear();
                 foreach (var p in processList.OrderBy(p => p.ProcessName))
                     Processes.Add(p);
+
+                BuildProcessTree(processList);
 
                 StatusText = $"Loaded {Processes.Count} processes";
             }
@@ -421,6 +443,133 @@ namespace OctoTask.UI.ViewModels
             else
             {
                 StatusText = "Failed to kill process — access denied or process already exited";
+            }
+        }
+
+        private void SuspendSelectedProcess()
+        {
+            if (SelectedProcess == null)
+                return;
+
+            if (ProcessInterop.SuspendProcess(SelectedProcess.Pid))
+                StatusText = $"Suspended PID {SelectedProcess.Pid}";
+            else
+                StatusText = $"Failed to suspend PID {SelectedProcess.Pid} — access denied";
+        }
+
+        private void ResumeSelectedProcess()
+        {
+            if (SelectedProcess == null)
+                return;
+
+            if (ProcessInterop.ResumeProcess(SelectedProcess.Pid))
+                StatusText = $"Resumed PID {SelectedProcess.Pid}";
+            else
+                StatusText = $"Failed to resume PID {SelectedProcess.Pid} — access denied";
+        }
+
+        private void ExportProcesses(string format)
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                FileName = $"processes.{format}",
+                DefaultExt = $".{format}",
+                Filter = format == "csv"
+                    ? "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+                    : "JSON files (*.json)|*.json|All files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                string content = format == "csv" ? ExportAsCsv() : ExportAsJson();
+                File.WriteAllText(dialog.FileName, content);
+                StatusText = $"Exported {Processes.Count} processes to {dialog.FileName}";
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Export failed: {ex.Message}";
+            }
+        }
+
+        private string ExportAsJson()
+        {
+            var export = Processes.Select(p => new
+            {
+                p.Pid,
+                p.ProcessName,
+                p.ExecutablePath,
+                WorkingSetMB = Math.Round(p.WorkingSetBytes / (1024.0 * 1024), 1),
+                CpuPercentage = Math.Round(p.CpuPercentage, 1)
+            });
+            return System.Text.Json.JsonSerializer.Serialize(export, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+
+        private string ExportAsCsv()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("PID,ProcessName,ExecutablePath,WorkingSetMB,CpuPercentage");
+            foreach (var p in Processes)
+            {
+                string name = EscapeCsvField(p.ProcessName);
+                string path = EscapeCsvField(p.ExecutablePath);
+                double wsMB = Math.Round(p.WorkingSetBytes / (1024.0 * 1024), 1);
+                double cpu = Math.Round(p.CpuPercentage, 1);
+                sb.AppendLine($"{p.Pid},{name},{path},{wsMB},{cpu}");
+            }
+            return sb.ToString();
+        }
+
+        private static string EscapeCsvField(string? field)
+        {
+            if (string.IsNullOrEmpty(field))
+                return "\"\"";
+            if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
+                return "\"" + field.Replace("\"", "\"\"") + "\"";
+            return "\"" + field + "\"";
+        }
+
+        private void BuildProcessTree(List<ProcessInfo> processList)
+        {
+            ProcessTree.Clear();
+            foreach (var p in processList)
+                p.Children.Clear();
+
+            var lookup = new Dictionary<int, ProcessInfo>();
+            foreach (var p in processList)
+                lookup[p.Pid] = p;
+
+            var parentMap = new Dictionary<int, int>();
+            try
+            {
+                using var searcher = new ManagementObjectSearcher(
+                    "SELECT ProcessId, ParentProcessId FROM Win32_Process");
+                foreach (ManagementObject mo in searcher.Get())
+                {
+                    try
+                    {
+                        int pid = Convert.ToInt32(mo["ProcessId"]);
+                        int parentPid = Convert.ToInt32(mo["ParentProcessId"]);
+                        parentMap[pid] = parentPid;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
+            foreach (var p in processList)
+            {
+                if (parentMap.TryGetValue(p.Pid, out int parentPid) && parentPid != 0)
+                    p.ParentPid = parentPid;
+                else
+                    p.ParentPid = 0;
+
+                if (p.ParentPid != 0 && lookup.TryGetValue(p.ParentPid, out var parent))
+                    parent.Children.Add(p);
+                else
+                    ProcessTree.Add(p);
             }
         }
 

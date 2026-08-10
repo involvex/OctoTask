@@ -2,102 +2,112 @@
 
 ## Current State Overview
 
-OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .NET. It replaces the default Task Manager via the Image File Execution Options (IFEO) registry hook, reads process information directly from the PEB via P/Invoke, includes a full MVVM architecture with auto-refresh, column sorting, and process termination. Installer scripts and a restore mechanism are included.
+OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .NET 10. It replaces the default Task Manager via the Image File Execution Options (IFEO) registry hook, reads process information directly from the PEB via P/Invoke, includes a full MVVM architecture with auto-refresh, column sorting, process termination, a system tray icon with dynamic usage display, and a settings dialog. Installer scripts and a restore mechanism are included.
 
 ### Architecture Summary
-- **UI Layer**: WPF with custom dark theme (`#0d1117` terminal aesthetic)
-- **Native Layer**: `ProcessInterop.cs` (P/Invoke for `NtQueryInformationProcess`, `ReadProcessMemory`), `DwmInterop.cs` (dark title bar)
-- **Core Layer**: `ProcessInfo` model, `TaskmgrHook` registry management
+- **UI Layer**: WPF with custom dark theme (`#0f172a` terminal aesthetic)
+- **Native Layer**: `ProcessInterop.cs` (P/Invoke for `NtQueryInformationProcess`, `ReadProcessMemory`), `DwmInterop.cs` (dark title bar), `TrayIconService.cs` (system tray), `TrayIconRenderer.cs` (dynamic icon generation)
+- **Core Layer**: `ProcessInfo`/`ProcessDetails` models, `TaskmgrHook` registry management, `AppSettings` persistence
 - **Deployment**: PowerShell scripts for install/uninstall/restore with `.reg` backup
+
+---
+
+## Completed
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 2 | Search / Filter Bar | Live filtering by name, PID, executable path, command line |
+| 3 | CPU Usage Column | Per-process CPU % via TotalProcessorTime sampling |
+| 4 | Process Details Pane | Side panel with basic info, owner, parent, file info, modules, environment variables |
+| 5 | System Resource Gauges | CPU and RAM progress bars in header dashboard |
+| — | System Tray Icon | Dynamic icon with progress arc, configurable CPU/RAM display, minimize-to-tray, settings dialog |
 
 ---
 
 ## Priority: High
 
 ### 1. Process Tree View
+**Status**: Not started
 **Description**: Add a hierarchical view showing parent-child process relationships.
 **Why**: The current DataGrid is flat — users often need to understand which processes spawned others.
 **How**: Extend `ProcessInfo` with `ParentPid`, build a tree structure in `MainViewModel`, switch between flat DataGrid and TreeView via a toggle.
 
-### 2. Search / Filter Bar
-**Description**: Add a text box above the DataGrid to filter processes by name, PID, or command line.
-**Why**: With hundreds of processes on a typical system, finding a specific one is difficult.
-**How**: Add a `FilterText` property to the ViewModel, bind to a `TextBox` in the toolbar, use `ICollectionView.Filter`.
-
-### 3. CPU Usage Column
-**Description**: Add a CPU % column alongside the existing RAM column.
-**Why**: Users need both memory and CPU metrics to identify resource hogs.
-**How**: Use `System.Diagnostics` performance counters, or sample `TotalProcessorTime` / elapsed time over a 1-second interval per process.
-
-### 4. Process Details Pane
-**Description**: When a process is selected, show detailed information (environment variables, open handles, loaded modules, user context) in a side or bottom panel.
-**Why**: Debugging and forensic use cases require deeper insight.
-**How**: Add a `DetailPane` below the DataGrid with read-only `PropertyGrid` or custom fields. Query via WMI or P/Invoke (`NtQuerySystemInformation`).
-
----
-
-## Priority: Medium
-
-### 5. System Resource Graphs
-**Description**: Add top-bar or sidebar graphs showing live CPU, Memory, Disk, and Network usage.
-**Why**: OctoTask aims to be a Task Manager replacement — real-time resource visualization is expected.
-**How**: Use WPF `Polyline` in a `Canvas` or lightweight charting. Poll `PerformanceCounter` every 500ms-1s.
-
-### 6. Network Monitoring per Process
-**Description**: Show network activity (send/receive bytes per second) per process.
-**Why**: Network-based malware or runaway downloads are common suspects.
-**How**: P/Invoke `GetExtendedTcpTable` and `GetExtendedUdpTable` from `iphlpapi.dll`, or use `System.Net.NetworkInformation` for global stats. Map connections to PIDs.
-
 ### 7. Startup / Auto-Launch Management
+**Status**: Not started
 **Description**: Add a "Startup" view listing processes with autostart entries (registry, task scheduler, startup folders).
 **Why**: Many users want to manage what runs at boot.
 **How**: Query `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, `HKLM\...Run`, Task Scheduler API (`Microsoft.Win32.TaskScheduler` NuGet), and `Startup` folder.
 
 ### 8. Process Suspension / Resumption
+**Status**: Not started
 **Description**: Allow users to suspend and resume individual processes (like Process Explorer).
 **Why**: Temporarily halting a process without killing it can be useful for troubleshooting.
 **How**: P/Invoke `NtSuspendProcess` / `NtResumeProcess` from `ntdll.dll`.
 
+---
+
+## Priority: Medium
+
+### 5b. System Resource History Graphs
+**Status**: Gauges done, history graphs pending
+**Description**: Add live line charts showing CPU, Memory, Disk, and Network usage over time.
+**Why**: Gauges show current state — graphs show trends and spikes.
+**How**: Use WPF `Polyline` in a `Canvas` or lightweight charting. Poll `PerformanceCounter` every 500ms-1s.
+
+### 6. Network Monitoring per Process
+**Status**: Not started
+**Description**: Show network activity (send/receive bytes per second) per process.
+**Why**: Network-based malware or runaway downloads are common suspects.
+**How**: P/Invoke `GetExtendedTcpTable` and `GetExtendedUdpTable` from `iphlpapi.dll`, or use `System.Net.NetworkInformation` for global stats. Map connections to PIDs.
+
 ### 9. Export to CSV / JSON
+**Status**: Not started
 **Description**: Add a button to export the current process list to CSV or JSON.
 **Why**: Useful for documentation, sharing, or offline analysis.
 **How**: Serialize `Processes` collection using `System.Text.Json` or CSV writer.
 
 ### 10. Dark/Light Theme Toggle
+**Status**: Not started
 **Description**: Allow switching between dark terminal theme and a light theme.
 **Why**: Some users prefer light themes in well-lit environments.
 **How**: Move color resources to a theme dictionary, add toggle in settings. Re-apply DWM title bar color based on choice.
+
+### 12. Column Customization
+**Status**: Not started
+**Description**: Let users show/hide columns, reorder them, and resize.
+**Why**: Different workflows prefer different columns.
+**How**: Use `DataGridColumn Visibility` bindings, allow drag-drop reordering, persist column layout in settings.
+
+### 13. Keyboard Shortcuts
+**Status**: Not started
+**Description**: Add global hotkeys for common actions (Ctrl+R for refresh, Ctrl+K for kill, Ctrl+F for search).
+**Why**: Terminal-oriented users expect keyboard-first workflows.
+**How**: Register global hotkeys via `RegisterHotKey` from `user32.dll`, or use WPF `InputBinding`s within the window.
 
 ---
 
 ## Priority: Low / Future
 
 ### 11. Portable Mode
+**Status**: Not started
 **Description**: Allow running OctoTask without installation — all state stored locally in the app directory.
 **Why**: Some users (especially power users, sysadmins) prefer not to install software.
 **How**: Detect a `portable.flag` file or `--portable` CLI flag. Store backup `.reg` file and settings next to the executable instead of using `%APPDATA%` or `Program Files`.
 
-### 12. Column Customization
-**Description**: Let users show/hide columns, reorder them, and resize.
-**Why**: Different workflows prefer different columns.
-**How**: Use `DataGridColumn Visibility` bindings, allow drag-drop reordering, persist column layout in settings.
-
-### 13. Keyboard Shortcuts
-**Description**: Add global hotkeys for common actions (Ctrl+R for refresh, Ctrl+K for kill, Ctrl+F for search).
-**Why**: Terminal-oriented users expect keyboard-first workflows.
-**How**: Register global hotkeys via `RegisterHotKey` from `user32.dll`, or use WPF `InputBinding`s within the window.
-
 ### 14. Metrics Overlay (Like MSI Afterburner for processes)
+**Status**: Not started
 **Description**: A minimal always-on-top overlay showing selected process's real-time CPU/RAM usage.
 **Why**: Useful during gaming or performance testing to monitor a background process.
 **How**: A borderless, transparent, click-through `WPF` window bound to a single selected process.
 
 ### 15. Service Management
+**Status**: Not started
 **Description**: Show Windows services and allow starting/stopping/recycling them.
 **Why**: Many admins use Task Manager to manage services quickly.
 **How**: Query `ServiceController.GetServices()`, create a separate or toggleable view for services.
 
 ### 16. Multi-Language / Localization
+**Status**: Not started
 **Description**: Localize the UI into multiple languages.
 **Why**: Wider adoption in non-English environments.
 **How**: Use `.resx` resource files, add a language selector in settings.
@@ -140,8 +150,7 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 **Why**: As a Task Manager replacement running as admin, it could be a target for attack.
 **How**: Hash the executable on startup, optionally compare against a known-good hash, or use Windows Defender Application Control (WDAC) policies.
 
-### 23. ETW (Event Tracing) Export
+### 23. ETW (Event Tracing Export)
 **Description**: Instead of (or in addition to) polling processes, use Event Tracing for Windows (ETW) to receive real-time process start/stop events.
 **Why**: Much more efficient than polling every 5 seconds; catches transient processes.
 **How**: Use `System.Diagnostics.Tracing.EventListener` or the `Microsoft.Diagnostics.Tracing` (TraceEvent) NuGet package.
-```

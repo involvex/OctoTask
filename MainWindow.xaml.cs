@@ -32,15 +32,25 @@ public partial class MainWindow : Window
         Closed += OnClosed;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        _viewModel.RefreshProcesses();
-
-        if (ProcessDataGrid != null)
+        private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            ProcessDataGrid.Sorting += OnDataGridSorting;
+            _viewModel.RefreshProcesses();
+
+            if (ProcessDataGrid != null)
+            {
+                ProcessDataGrid.Sorting += OnDataGridSorting;
+            }
+
+            if (ProcessTreeView != null)
+            {
+                ProcessTreeView.SelectedItemChanged += OnTreeViewSelectedItemChanged;
+            }
         }
-    }
+
+        private void OnTreeViewSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+            _viewModel.SelectedProcess = e.NewValue as Core.Models.ProcessInfo;
+        }
 
     protected override void OnSourceInitialized(EventArgs e)
     {

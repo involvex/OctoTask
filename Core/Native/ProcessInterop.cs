@@ -16,6 +16,7 @@ namespace OctoTask.Core.Native
         private const int PROCESS_QUERY_INFORMATION = 0x0400;
         private const int PROCESS_VM_READ = 0x0010;
         private const int PROCESS_TERMINATE = 0x0001;
+        private const int PROCESS_SUSPEND_RESUME = 0x0800;
         private const int ProcessBasicInformationClass = 0;
         private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
         private const uint TOKEN_QUERY = 0x0008;
@@ -59,6 +60,12 @@ namespace OctoTask.Core.Native
         #endregion
 
         #region P/Invoke (DllImport for compatibility with unsafe code generation)
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtSuspendProcess(IntPtr processHandle);
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtResumeProcess(IntPtr processHandle);
 
         [DllImport("ntdll.dll", SetLastError = true)]
         private static extern int NtQueryInformationProcess(
@@ -378,6 +385,50 @@ namespace OctoTask.Core.Native
             catch
             {
                 return false;
+            }
+        }
+
+        public static bool SuspendProcess(int pid)
+        {
+            EnableDebugPrivilege();
+            IntPtr handle = IntPtr.Zero;
+            try
+            {
+                handle = OpenProcess(PROCESS_SUSPEND_RESUME, false, pid);
+                if (handle == IntPtr.Zero)
+                    return false;
+                return NtSuspendProcess(handle) == 0;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                if (handle != IntPtr.Zero)
+                    CloseHandle(handle);
+            }
+        }
+
+        public static bool ResumeProcess(int pid)
+        {
+            EnableDebugPrivilege();
+            IntPtr handle = IntPtr.Zero;
+            try
+            {
+                handle = OpenProcess(PROCESS_SUSPEND_RESUME, false, pid);
+                if (handle == IntPtr.Zero)
+                    return false;
+                return NtResumeProcess(handle) == 0;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                if (handle != IntPtr.Zero)
+                    CloseHandle(handle);
             }
         }
 

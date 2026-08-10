@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -14,9 +15,11 @@ namespace OctoTask.Core.Models
         private ProcessDetails? _details;
 
         public int Pid { get; set; }
+        public int ParentPid { get; set; }
         public string ProcessName { get; set; } = string.Empty;
         public string ExecutablePath { get; set; } = string.Empty;
         public string CommandLine { get; set; } = string.Empty;
+        public ObservableCollection<ProcessInfo> Children { get; } = new();
 
         public long WorkingSetBytes
         {

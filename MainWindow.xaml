@@ -1,4 +1,4 @@
-﻿<Window x:Class="OctoTask.MainWindow"
+<Window x:Class="OctoTask.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -14,6 +14,8 @@
         FontFamily="Cascadia Mono, Consolas, Courier New">
 
     <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:BoolToVisibilityInvertedConverter x:Key="BoolToVisibilityInverted"/>
         <SolidColorBrush x:Key="BgBrush" Color="#0f172a"/>
         <SolidColorBrush x:Key="SurfaceBrush" Color="#1e293b"/>
         <SolidColorBrush x:Key="SurfaceAltBrush" Color="#273549"/>
@@ -250,6 +252,12 @@
             <Setter Property="MinWidth" Value="28"/>
         </Style>
 
+        <!-- Toolbar toggle button style -->
+        <Style x:Key="ToolbarToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="MinWidth" Value="28"/>
+        </Style>
+
         <!-- Danger button style -->
         <Style x:Key="DangerButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
@@ -378,6 +386,27 @@
                     Command="{Binding RestoreHookCommand}"
                     Content="↺ Restore TM"
                     IsEnabled="{Binding CanRestore}"/>
+            <Separator Margin="8,0"/>
+            <ToggleButton x:Name="TreeViewToggle"
+                          IsChecked="{Binding IsTreeView}"
+                          Content="🌳 Tree"
+                          Style="{StaticResource ToolbarToggleButton}"/>
+            <Separator Margin="8,0"/>
+            <Button x:Name="SuspendButton" Style="{StaticResource ToolbarButton}"
+                    Command="{Binding SuspendProcessCommand}"
+                    Content="⏸ Suspend"
+                    IsEnabled="{Binding CanKillProcess}"/>
+            <Button x:Name="ResumeButton" Style="{StaticResource ToolbarButton}"
+                    Command="{Binding ResumeProcessCommand}"
+                    Content="▶ Resume"
+                    IsEnabled="{Binding CanKillProcess}"/>
+            <Separator Margin="8,0"/>
+            <Button x:Name="ExportCsvButton" Style="{StaticResource ToolbarButton}"
+                    Command="{Binding ExportCsvCommand}"
+                    Content="⬇ CSV"/>
+            <Button x:Name="ExportJsonButton" Style="{StaticResource ToolbarButton}"
+                    Command="{Binding ExportJsonCommand}"
+                    Content="⬇ JSON"/>
             <Separator Margin="8,0"/>
             <Button x:Name="TraySettingsButton" Style="{StaticResource ToolbarButton}"
                     Command="{Binding OpenTraySettingsCommand}"
@@ -569,60 +598,101 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- DataGrid fills remaining space -->
-            <DataGrid x:Name="ProcessDataGrid"
-                      Style="{StaticResource DarkDataGrid}"
-                      ItemsSource="{Binding Processes}"
-                      SelectedItem="{Binding SelectedProcess}">
+            <!-- DataGrid / TreeView fills remaining space -->
+            <Grid>
+                <DataGrid x:Name="ProcessDataGrid"
+                          Style="{StaticResource DarkDataGrid}"
+                          ItemsSource="{Binding Processes}"
+                          SelectedItem="{Binding SelectedProcess}"
+                          Visibility="{Binding IsTreeView, Converter={StaticResource BoolToVisibilityInverted}}">
 
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="PID"
-                                        Binding="{Binding Pid}"
-                                        SortMemberPath="Pid"
-                                        Width="70">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="Padding" Value="4,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="Process"
-                                        Binding="{Binding ProcessName}"
-                                        SortMemberPath="ProcessName"
-                                        Width="180"/>
-                    <DataGridTextColumn Header="RAM"
-                                        Binding="{Binding WorkingSetDisplay, Mode=OneWay}"
-                                        SortMemberPath="WorkingSetBytes"
-                                        Width="150">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="Padding" Value="4,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="CPU"
-                                        Binding="{Binding CpuPercentageDisplay, Mode=OneWay}"
-                                        SortMemberPath="CpuPercentage"
-                                        Width="120">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="Padding" Value="4,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="Executable Path"
-                                        Binding="{Binding ExecutablePath}"
-                                        SortMemberPath="ExecutablePath"
-                                        Width="230"/>
-                    <DataGridTextColumn Header="Command Line"
-                                        Binding="{Binding CommandLine}"
-                                        SortMemberPath="CommandLine"
-                                        Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="PID"
+                                            Binding="{Binding Pid}"
+                                            SortMemberPath="Pid"
+                                            Width="70">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="4,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Process"
+                                            Binding="{Binding ProcessName}"
+                                            SortMemberPath="ProcessName"
+                                            Width="180"/>
+                        <DataGridTextColumn Header="RAM"
+                                            Binding="{Binding WorkingSetDisplay, Mode=OneWay}"
+                                            SortMemberPath="WorkingSetBytes"
+                                            Width="150">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="4,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="CPU"
+                                            Binding="{Binding CpuPercentageDisplay, Mode=OneWay}"
+                                            SortMemberPath="CpuPercentage"
+                                            Width="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="4,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Executable Path"
+                                            Binding="{Binding ExecutablePath}"
+                                            SortMemberPath="ExecutablePath"
+                                            Width="230"/>
+                        <DataGridTextColumn Header="Command Line"
+                                            Binding="{Binding CommandLine}"
+                                            SortMemberPath="CommandLine"
+                                            Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <TreeView x:Name="ProcessTreeView"
+                          ItemsSource="{Binding ProcessTree}"
+                          Visibility="{Binding IsTreeView, Converter={StaticResource BoolToVisibility}}"
+                          Background="{StaticResource BgBrush}"
+                          Foreground="{StaticResource TextPrimary}"
+                          BorderBrush="{StaticResource BorderBrush}"
+                          BorderThickness="0"
+                          FontFamily="Cascadia Mono, Consolas, Courier New"
+                          FontSize="12">
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="True"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="1,0"/>
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding Pid}" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ProcessName}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="2" Text="{Binding WorkingSetDisplay, Mode=OneWay}" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="3" Text="{Binding CpuPercentageDisplay, Mode=OneWay}" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="4" Text="{Binding ExecutablePath}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextMuted}"/>
+                            </Grid>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Grid>
         </DockPanel>
 
         <!-- Status bar -->
