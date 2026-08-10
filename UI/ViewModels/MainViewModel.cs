@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using OctoTask.Core.Models;
 using OctoTask.Core.Native;
 using OctoTask.Core.Registry;
+using OctoTask.UI.Views;
 
 namespace OctoTask.UI.ViewModels
 {
@@ -45,6 +46,7 @@ namespace OctoTask.UI.ViewModels
         public ICommand KillProcessCommand { get; }
         public ICommand ToggleAutoRefreshCommand { get; }
         public ICommand ClearFilterCommand { get; }
+        public ICommand OpenTraySettingsCommand { get; }
 
         private ProcessDetails? _processDetails;
 
@@ -180,6 +182,15 @@ namespace OctoTask.UI.ViewModels
             KillProcessCommand = new RelayCommand(_ => KillSelectedProcess(), _ => CanKillProcess);
             ToggleAutoRefreshCommand = new RelayCommand(_ => IsAutoRefreshEnabled = !IsAutoRefreshEnabled);
             ClearFilterCommand = new RelayCommand(_ => FilterText = string.Empty, _ => CanClearFilter);
+            OpenTraySettingsCommand = new RelayCommand(_ =>
+            {
+                var win = new TrayIconSettingsWindow(Core.Settings.AppSettings.Load());
+                win.Owner = System.Windows.Application.Current.MainWindow;
+                if (win.ShowDialog() == true)
+                {
+                    // Settings reloaded by MainWindow if needed
+                }
+            });
 
             _currentSortColumn = nameof(ProcessInfo.ProcessName);
             _sortClickCount = 1;

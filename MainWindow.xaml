@@ -379,6 +379,10 @@
                     Content="↺ Restore TM"
                     IsEnabled="{Binding CanRestore}"/>
             <Separator Margin="8,0"/>
+            <Button x:Name="TraySettingsButton" Style="{StaticResource ToolbarButton}"
+                    Command="{Binding OpenTraySettingsCommand}"
+                    Content="⚙ Tray"/>
+            <Separator Margin="8,0"/>
             <Button x:Name="KillButton" Style="{StaticResource DangerButton}"
                     Command="{Binding KillProcessCommand}"
                     Content="⏻ Kill Process"

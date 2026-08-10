@@ -1,0 +1,120 @@
+<Window x:Class="OctoTask.UI.Views.TrayIconSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tray Icon Settings"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+        Background="#0f172a"
+        FontFamily="Cascadia Mono, Consolas, Courier New"
+        Foreground="#f1f5f9">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#1e293b"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#3b82f6"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#3b82f6"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#94a3b8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#94a3b8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#1e293b"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="MinWidth" Value="80"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Padding="20" BorderBrush="#334155" BorderThickness="0">
+        <StackPanel MinWidth="280">
+            <TextBlock Text="Tray Icon Display"
+                       FontWeight="SemiBold"
+                       FontSize="13"
+                       Margin="0,0,0,10"/>
+
+            <RadioButton x:Name="CpuRadio"
+                         Content="CPU usage"
+                         IsChecked="{Binding ShowCpu}"/>
+            <RadioButton x:Name="RamRadio"
+                         Content="RAM usage"
+                         IsChecked="{Binding ShowRam}"/>
+
+            <Separator Margin="0,14" Background="#334155"/>
+
+            <CheckBox x:Name="MinimizeTrayCheck"
+                      Content="Minimize to system tray"
+                      IsChecked="{Binding MinimizeToTray}"/>
+
+            <Separator Margin="0,14" Background="#334155"/>
+
+            <DockPanel Margin="0,0,0,4">
+                <TextBlock Text="Update interval:"
+                           DockPanel.Dock="Left"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <ComboBox x:Name="IntervalCombo"
+                          SelectedValue="{Binding UpdateIntervalMs}"
+                          SelectedValuePath="Tag">
+                    <ComboBoxItem Content="1 second" Tag="1000"/>
+                    <ComboBoxItem Content="2 seconds" Tag="2000"/>
+                    <ComboBoxItem Content="5 seconds" Tag="5000"/>
+                    <ComboBoxItem Content="10 seconds" Tag="10000"/>
+                </ComboBox>
+            </DockPanel>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,18,0,0">
+                <Button Content="OK"
+                        Click="OnOkClick"
+                        IsDefault="True"
+                        Margin="0,0,8,0"/>
+                <Button Content="Cancel"
+                        Click="OnCancelClick"
+                        IsCancel="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>
