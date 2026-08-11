@@ -45,11 +45,21 @@ public partial class MainWindow : Window
             {
                 ProcessTreeView.SelectedItemChanged += OnTreeViewSelectedItemChanged;
             }
+
+            MainTabControl.SelectionChanged += OnTabChanged;
         }
 
         private void OnTreeViewSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
             _viewModel.SelectedProcess = e.NewValue as Core.Models.ProcessInfo;
+        }
+
+        private void OnTabChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (MainTabControl.SelectedIndex == 1)
+            {
+                _viewModel.PortVM.Refresh();
+            }
         }
 
     protected override void OnSourceInitialized(EventArgs e)
