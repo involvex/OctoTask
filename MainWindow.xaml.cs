@@ -2,7 +2,9 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
+using OctoTask.Core.Models;
 using OctoTask.Core.Native;
 using OctoTask.Core.Settings;
 using OctoTask.UI.ViewModels;
@@ -32,22 +34,24 @@ public partial class MainWindow : Window
         Closed += OnClosed;
     }
 
-        private void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _viewModel.RefreshProcesses();
+
+        if (ProcessDataGrid != null)
         {
-            _viewModel.RefreshProcesses();
-
-            if (ProcessDataGrid != null)
-            {
-                ProcessDataGrid.Sorting += OnDataGridSorting;
-            }
-
-            if (ProcessTreeView != null)
-            {
-                ProcessTreeView.SelectedItemChanged += OnTreeViewSelectedItemChanged;
-            }
-
-            MainTabControl.SelectionChanged += OnTabChanged;
+            ProcessDataGrid.Sorting += OnDataGridSorting;
+            ProcessDataGrid.ContextMenuOpening += OnProcessContextMenuOpening;
         }
+
+        if (ProcessTreeView != null)
+        {
+            ProcessTreeView.SelectedItemChanged += OnTreeViewSelectedItemChanged;
+            ProcessTreeView.ContextMenuOpening += OnProcessContextMenuOpening;
+        }
+
+        MainTabControl.SelectionChanged += OnTabChanged;
+    }
 
         private void OnTreeViewSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
@@ -195,6 +199,86 @@ public partial class MainWindow : Window
 
         string propertyName = e.Column.SortMemberPath ?? GetPropertyName(e.Column) ?? string.Empty;
         _viewModel.SetSort(propertyName);
+    }
+
+    private void OnProcessContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var menu = (e.Source as FrameworkElement)?.ContextMenu;
+        if (menu == null)
+            return;
+
+        ProcessInfo? targetProcess = null;
+        var mousePos = Mouse.GetPosition((IInputElement)sender);
+
+        if (sender is DataGrid dataGrid)
+        {
+            var hit = dataGrid.InputHitTest(mousePos);
+            if (hit is DependencyObject depObj)
+            {
+                var row = FindParent<DataGridRow>(depObj);
+                if (row != null && row.Item is ProcessInfo pi)
+                {
+                    targetProcess = pi;
+                    dataGrid.SelectedItem = pi;
+                    _viewModel.SelectedProcess = pi;
+                }
+            }
+        }
+        else if (sender is TreeView treeView)
+        {
+            var hit = treeView.InputHitTest(mousePos);
+            if (hit is DependencyObject depObj)
+            {
+                var item = FindParent<TreeViewItem>(depObj);
+                if (item != null && item.DataContext is ProcessInfo pi)
+                {
+                    targetProcess = pi;
+                    _viewModel.SelectedProcess = pi;
+                }
+            }
+        }
+
+        menu.DataContext = _viewModel;
+        menu.IsOpen = targetProcess is not null;
+        e.Handled = targetProcess is not null;
+    }
+
+    private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
+    {
+        while (child != null)
+        {
+            if (child is T parent)
+                return parent;
+            child = System.Windows.Media.VisualTreeHelper.GetParent(child);
+        }
+        return null;
+    }
+
+    private void OnContextMenuProperties(object sender, RoutedEventArgs e)
+    {
+        var process = _viewModel.SelectedProcess;
+        if (process == null)
+            return;
+
+        _viewModel.SelectedProcess = process;
+    }
+
+    private void OnCopyProcessName(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedProcess != null)
+            Clipboard.SetText(_viewModel.SelectedProcess.ProcessName);
+    }
+
+    private void OnCopyPid(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedProcess != null)
+            Clipboard.SetText(_viewModel.SelectedProcess.Pid.ToString());
+    }
+
+    private void OnCopyExecutablePath(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedProcess != null)
+            Clipboard.SetText(_viewModel.SelectedProcess.ExecutablePath);
     }
 
     private string? GetPropertyName(DataGridColumn column)

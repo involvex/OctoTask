@@ -36,10 +36,13 @@ namespace OctoTask.UI.ViewModels
         private ulong _systemRamUsed;
         private bool _isTreeView;
 
-        // CPU sampling: store last TotalProcessorTime per PID
-        private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes = new();
-        private readonly Stopwatch _cpuStopwatch = new();
+        private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes;
+        private readonly Stopwatch _cpuStopwatch;
+        private readonly ConcurrentDictionary<int, int> _parentPidCache;
+        private DateTime _parentPidCacheExpiry;
         private readonly PortViewModel _portVM;
+
+        private const int ParentPidCacheSeconds = 60;
 
         public ObservableCollection<ProcessInfo> Processes { get; }
         public ObservableCollection<ProcessInfo> ProcessTree { get; } = new();
@@ -162,6 +165,12 @@ namespace OctoTask.UI.ViewModels
             }
         }
 
+        public string SystemCpuTotalDisplay
+        {
+            get => $"{_systemCpuUsage:F1}%";
+            set { OnPropertyChanged(nameof(SystemCpuTotalDisplay)); }
+        }
+
         private static string FormatBytes(long bytes)
         {
             if (bytes < 1024)
@@ -177,10 +186,13 @@ namespace OctoTask.UI.ViewModels
         {
             Processes = new ObservableCollection<ProcessInfo>();
 
-            // Start the CPU stopwatch
+            _parentPidCache = new ConcurrentDictionary<int, int>();
+            _parentPidCacheExpiry = DateTime.MinValue;
+
+            _lastCpuTimes = new ConcurrentDictionary<int, TimeSpan>();
+            _cpuStopwatch = new();
             _cpuStopwatch.Start();
 
-            // 5-second auto-refresh timer
             _refreshTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(5)
@@ -188,7 +200,6 @@ namespace OctoTask.UI.ViewModels
             _refreshTimer.Tick += (_, _) => RefreshProcesses();
             _refreshTimer.IsEnabled = IsAutoRefreshEnabled;
 
-            // Collection view for sorting
             _collectionView = CollectionViewSource.GetDefaultView(Processes);
             _collectionView.SortDescriptions.Add(new SortDescription(nameof(ProcessInfo.ProcessName), ListSortDirection.Ascending));
 
@@ -247,83 +258,19 @@ namespace OctoTask.UI.ViewModels
                 IsBusy = true;
                 StatusText = "Refreshing processes...";
 
-                // Refresh system info for RAM percentage calculation
-                SystemInfo.Refresh();
-                ulong totalRam = SystemInfo.TotalPhysicalMemory;
-
                 var elapsed = _cpuStopwatch.Elapsed;
-                var processList = await Task.Run(() => ProcessInterop.GetAllProcesses());
+                var snapshot = await Task.Run(() => RefreshProcessesInternal(elapsed));
 
-                // Calculate CPU for each process
-                int processorCount = Environment.ProcessorCount;
-                var newCpuTimes = new Dictionary<int, TimeSpan>();
-                var processLookup = processList.ToDictionary(p => p.Pid, p => p);
+                // Apply incremental changes on UI thread
+                ApplyRefreshResult(snapshot);
 
-                // Refresh process handles for CPU sampling
-                foreach (Process proc in Process.GetProcesses().Where(p => { try { return !p.HasExited; } catch { return false; } }))
-                {
-                    try
-                    {
-                        TimeSpan currentCpu = proc.TotalProcessorTime;
-                        newCpuTimes[proc.Id] = currentCpu;
-
-                        if (_lastCpuTimes.TryGetValue(proc.Id, out TimeSpan lastCpu) && elapsed.TotalSeconds > 0)
-                        {
-                            double cpuTimeDeltaMs = (currentCpu - lastCpu).TotalMilliseconds;
-                            double wallClockMs = elapsed.TotalMilliseconds;
-                            double cpuPercent = Math.Max(0, Math.Min(100, (cpuTimeDeltaMs / wallClockMs / processorCount) * 100));
-
-                            if (processLookup.TryGetValue(proc.Id, out ProcessInfo? info) && info != null)
-                            {
-                                info.CpuPercentage = cpuPercent;
-                                info.TotalProcessorTime = currentCpu;
-                            }
-                        }
-                        else if (processLookup.TryGetValue(proc.Id, out ProcessInfo? info2) && info2 != null)
-                        {
-                            info2.TotalProcessorTime = currentCpu;
-                        }
-                    }
-                    catch
-                    {
-                        // Process may have exited
-                    }
-                }
-
-                _lastCpuTimes.Clear();
-                foreach (var kvp in newCpuTimes)
-                    _lastCpuTimes[kvp.Key] = kvp.Value;
-
-                _cpuStopwatch.Restart();
-
-                // Set RAM percentage for each process
-                ulong totalWorkingSet = 0;
-                if (totalRam > 0)
-                {
-                    foreach (var p in processList)
-                    {
-                        p.WorkingSetPercentage = (p.WorkingSetBytes / (double)totalRam) * 100;
-                        totalWorkingSet += (ulong)p.WorkingSetBytes;
-                    }
-                }
-
-                // Update system telemetry
-                SystemRamTotal = totalRam;
-                SystemRamUsed = totalWorkingSet;
-                SystemRamUsage = totalRam > 0 ? (totalWorkingSet / (double)totalRam) * 100 : 0;
+                // Update system telemetry on UI thread
+                SystemRamTotal = snapshot.TotalRam;
+                SystemRamUsed = snapshot.TotalWorkingSet;
+                SystemRamUsage = snapshot.TotalRam > 0 ? (snapshot.TotalWorkingSet / (double)snapshot.TotalRam) * 100 : 0;
+                SystemCpuUsage = Math.Min(100, snapshot.TotalCpu);
                 OnPropertyChanged(nameof(SystemRamDisplay));
-
-                // Calculate system CPU usage (sum of all process CPU %)
-                double totalCpu = 0;
-                foreach (var p in processList)
-                    totalCpu += p.CpuPercentage;
-                SystemCpuUsage = Math.Min(100, totalCpu);
-
-                Processes.Clear();
-                foreach (var p in processList.OrderBy(p => p.ProcessName))
-                    Processes.Add(p);
-
-                BuildProcessTree(processList);
+                OnPropertyChanged(nameof(SystemCpuTotalDisplay));
 
                 StatusText = $"Loaded {Processes.Count} processes";
             }
@@ -335,6 +282,228 @@ namespace OctoTask.UI.ViewModels
             {
                 IsBusy = false;
             }
+        }
+
+        private class ProcessSnapshot
+        {
+            public int Pid { get; set; }
+            public string ProcessName { get; set; } = string.Empty;
+            public string ExecutablePath { get; set; } = string.Empty;
+            public string CommandLine { get; set; } = string.Empty;
+            public long WorkingSetBytes { get; set; }
+            public double WorkingSetPercentage { get; set; }
+            public double CpuPercentage { get; set; }
+            public TimeSpan TotalProcessorTime { get; set; }
+            public int ParentPid { get; set; }
+            public List<ProcessSnapshot> ProcessList { get; set; } = new();
+            public ulong TotalRam { get; set; }
+            public ulong TotalWorkingSet { get; set; }
+            public double TotalCpu { get; set; }
+        }
+
+        private ProcessSnapshot RefreshProcessesInternal(TimeSpan elapsed)
+        {
+            SystemInfo.Refresh();
+            ulong totalRam = SystemInfo.TotalPhysicalMemory;
+
+            int processorCount = Environment.ProcessorCount;
+            var newCpuTimes = new Dictionary<int, TimeSpan>();
+            var cpuLookup = new Dictionary<int, TimeSpan>();
+
+            // Single enumeration: get CPU times for all processes
+            foreach (Process proc in Process.GetProcesses().Where(p => { try { return !p.HasExited; } catch { return false; } }))
+            {
+                try
+                {
+                    TimeSpan currentCpu = proc.TotalProcessorTime;
+                    newCpuTimes[proc.Id] = currentCpu;
+
+                    if (elapsed.TotalSeconds > 0)
+                        cpuLookup[proc.Id] = currentCpu;
+                }
+                catch
+                {
+                }
+            }
+
+            // Build the process snapshot list
+            var processList = new List<ProcessSnapshot>();
+            ulong totalWorkingSet = 0;
+            double totalCpu = 0;
+
+            foreach (var proc in Process.GetProcesses().Where(p => { try { return !p.HasExited; } catch { return false; } }))
+            {
+                try
+                {
+                    var info = ProcessInterop.ReadProcessFromPeb(proc);
+                    if (info == null)
+                        continue;
+
+                    var snap = new ProcessSnapshot
+                    {
+                        Pid = info.Pid,
+                        ProcessName = info.ProcessName,
+                        ExecutablePath = info.ExecutablePath,
+                        CommandLine = info.CommandLine,
+                        WorkingSetBytes = proc.WorkingSet64,
+                    };
+
+                    if (_lastCpuTimes.TryGetValue(proc.Id, out TimeSpan lastCpu) && cpuLookup.TryGetValue(proc.Id, out TimeSpan currentCpu))
+                    {
+                        double cpuTimeDeltaMs = (currentCpu - lastCpu).TotalMilliseconds;
+                        double wallClockMs = elapsed.TotalMilliseconds;
+                        double cpuPercent = Math.Max(0, Math.Min(100, (cpuTimeDeltaMs / wallClockMs / processorCount) * 100));
+                        snap.CpuPercentage = cpuPercent;
+                        snap.TotalProcessorTime = currentCpu;
+                        totalCpu += cpuPercent;
+                    }
+                    else
+                    {
+                        snap.TotalProcessorTime = cpuLookup.GetValueOrDefault(proc.Id, TimeSpan.Zero);
+                    }
+
+                    if (totalRam > 0)
+                    {
+                        snap.WorkingSetPercentage = (snap.WorkingSetBytes / (double)totalRam) * 100;
+                        totalWorkingSet += (ulong)snap.WorkingSetBytes;
+                    }
+
+                    processList.Add(snap);
+                }
+                catch
+                {
+                }
+            }
+
+            _lastCpuTimes.Clear();
+            foreach (var kvp in newCpuTimes)
+                _lastCpuTimes[kvp.Key] = kvp.Value;
+
+            _cpuStopwatch.Restart();
+
+            return new ProcessSnapshot
+            {
+                TotalRam = totalRam,
+                TotalWorkingSet = totalWorkingSet,
+                TotalCpu = totalCpu,
+                ProcessList = processList
+            };
+        }
+
+        private void ApplyRefreshResult(ProcessSnapshot snapshot)
+        {
+            var processList = snapshot.ProcessList;
+
+            foreach (var p in processList)
+            {
+                if (_parentPidCache.TryGetValue(p.Pid, out int parentPid))
+                    p.ParentPid = parentPid;
+            }
+
+            var oldLookup = new Dictionary<int, ProcessInfo>();
+            foreach (var p in Processes)
+                oldLookup[p.Pid] = p;
+
+            var newLookup = new Dictionary<int, ProcessInfo>();
+            foreach (var p in processList)
+            {
+                var info = new ProcessInfo
+                {
+                    Pid = p.Pid,
+                    ProcessName = p.ProcessName,
+                    ExecutablePath = p.ExecutablePath,
+                    CommandLine = p.CommandLine,
+                    WorkingSetBytes = p.WorkingSetBytes,
+                    WorkingSetPercentage = p.WorkingSetPercentage,
+                    CpuPercentage = p.CpuPercentage,
+                    TotalProcessorTime = p.TotalProcessorTime,
+                    ParentPid = p.ParentPid
+                };
+                newLookup[p.Pid] = info;
+            }
+
+            var toRemove = oldLookup.Keys.Except(newLookup.Keys).ToList();
+            var toUpdate = oldLookup.Keys.Intersect(newLookup.Keys).ToList();
+            var toAdd = newLookup.Keys.Except(oldLookup.Keys).ToList();
+
+            foreach (int pid in toRemove)
+                Processes.Remove(oldLookup[pid]);
+
+            foreach (int pid in toUpdate)
+            {
+                var oldP = oldLookup[pid];
+                var newP = newLookup[pid];
+                oldP.WorkingSetBytes = newP.WorkingSetBytes;
+                oldP.WorkingSetPercentage = newP.WorkingSetPercentage;
+                oldP.CpuPercentage = newP.CpuPercentage;
+                oldP.TotalProcessorTime = newP.TotalProcessorTime;
+                oldP.ExecutablePath = newP.ExecutablePath;
+                oldP.CommandLine = newP.CommandLine;
+                oldP.ProcessName = newP.ProcessName;
+            }
+
+            var sortedNew = toAdd.Select(pid => newLookup[pid]).OrderBy(p => p.ProcessName).ToList();
+            foreach (var p in sortedNew)
+                Processes.Add(p);
+        }
+
+        private void BuildProcessTree(List<ProcessInfo> processList)
+        {
+            ProcessTree.Clear();
+            foreach (var p in processList)
+                p.Children.Clear();
+
+            var lookup = new Dictionary<int, ProcessInfo>();
+            foreach (var p in processList)
+                lookup[p.Pid] = p;
+
+            // Use cached parent PIDs if fresh; otherwise query WMI
+            bool useCache = _parentPidCacheExpiry > DateTime.UtcNow
+                            && _parentPidCache.Count > 0
+                            && _parentPidCache.Count >= processList.Count * 80 / 100;
+
+            if (!useCache)
+            {
+                _parentPidCache.Clear();
+                try
+                {
+                    using var searcher = new ManagementObjectSearcher(
+                        "SELECT ProcessId, ParentProcessId FROM Win32_Process");
+                    foreach (ManagementObject mo in searcher.Get())
+                    {
+                        try
+                        {
+                            int pid = Convert.ToInt32(mo["ProcessId"]);
+                            int parentPid = Convert.ToInt32(mo["ParentProcessId"]);
+                            _parentPidCache[pid] = parentPid;
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+
+                _parentPidCacheExpiry = DateTime.UtcNow.AddSeconds(ParentPidCacheSeconds);
+            }
+
+            foreach (var p in processList)
+            {
+                if (_parentPidCache.TryGetValue(p.Pid, out int parentPid) && parentPid != 0)
+                    p.ParentPid = parentPid;
+                else
+                    p.ParentPid = 0;
+
+                if (p.ParentPid != 0 && lookup.TryGetValue(p.ParentPid, out var parent))
+                    parent.Children.Add(p);
+                else
+                    ProcessTree.Add(p);
+            }
+        }
+
+        private class RefreshResult
+        {
+            public ulong TotalRam { get; set; }
+            public ulong TotalWorkingSet { get; set; }
+            public double TotalCpu { get; set; }
         }
 
         private void InstallHook()
@@ -534,48 +703,6 @@ namespace OctoTask.UI.ViewModels
             if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
                 return "\"" + field.Replace("\"", "\"\"") + "\"";
             return "\"" + field + "\"";
-        }
-
-        private void BuildProcessTree(List<ProcessInfo> processList)
-        {
-            ProcessTree.Clear();
-            foreach (var p in processList)
-                p.Children.Clear();
-
-            var lookup = new Dictionary<int, ProcessInfo>();
-            foreach (var p in processList)
-                lookup[p.Pid] = p;
-
-            var parentMap = new Dictionary<int, int>();
-            try
-            {
-                using var searcher = new ManagementObjectSearcher(
-                    "SELECT ProcessId, ParentProcessId FROM Win32_Process");
-                foreach (ManagementObject mo in searcher.Get())
-                {
-                    try
-                    {
-                        int pid = Convert.ToInt32(mo["ProcessId"]);
-                        int parentPid = Convert.ToInt32(mo["ParentProcessId"]);
-                        parentMap[pid] = parentPid;
-                    }
-                    catch { }
-                }
-            }
-            catch { }
-
-            foreach (var p in processList)
-            {
-                if (parentMap.TryGetValue(p.Pid, out int parentPid) && parentPid != 0)
-                    p.ParentPid = parentPid;
-                else
-                    p.ParentPid = 0;
-
-                if (p.ParentPid != 0 && lookup.TryGetValue(p.ParentPid, out var parent))
-                    parent.Children.Add(p);
-                else
-                    ProcessTree.Add(p);
-            }
         }
 
         public void SelectProcessByPid(int pid)

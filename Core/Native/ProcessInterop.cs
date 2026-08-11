@@ -436,7 +436,7 @@ namespace OctoTask.Core.Native
 
         #region Private Helpers
 
-        private static ProcessInfo? ReadProcessFromPeb(Process proc)
+        internal static ProcessInfo? ReadProcessFromPeb(Process proc)
         {
             if (proc.HasExited)
                 return null;

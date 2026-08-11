@@ -240,6 +240,66 @@
             <Setter Property="MinWidth" Value="28"/>
         </Style>
 
+        <!-- Context menu style -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ItemsPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="Separator">
+            <Setter Property="Background" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="4,4"/>
+        </Style>
+
+        <!-- Shared process context menu -->
+        <ContextMenu x:Key="ProcessContextMenu">
+            <MenuItem Header="End Task" Command="{Binding KillProcessCommand}" Foreground="{StaticResource DangerBrush}"/>
+            <MenuItem Header="Suspend" Command="{Binding SuspendProcessCommand}"/>
+            <MenuItem Header="Resume" Command="{Binding ResumeProcessCommand}"/>
+            <Separator/>
+            <MenuItem Header="Properties" Click="OnContextMenuProperties"/>
+            <Separator/>
+            <MenuItem Header="Copy" >
+                <MenuItem Header="Process Name" Click="OnCopyProcessName"/>
+                <MenuItem Header="PID" Click="OnCopyPid"/>
+                <MenuItem Header="Executable Path" Click="OnCopyExecutablePath"/>
+            </MenuItem>
+        </ContextMenu>
+
         <!-- Danger button style -->
         <Style x:Key="DangerButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
@@ -346,12 +406,18 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- CPU Gauge -->
-                <TextBlock Grid.Column="0" Text="CPU" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ProgressBar Grid.Column="1" Value="{Binding SystemCpuUsage}" Maximum="100" Height="16" Background="{StaticResource BgBrush}" Foreground="{StaticResource AccentBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                    <TextBlock Text="CPU" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding SystemCpuTotalDisplay}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ProgressBar Grid.Column="1" Value="{Binding SystemCpuUsage}" Maximum="100" Height="14" Background="{StaticResource BgBrush}" Foreground="{StaticResource AccentBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" VerticalAlignment="Center"/>
 
                 <!-- RAM Gauge -->
-                <TextBlock Grid.Column="2" Text="RAM" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="16,0,8,0"/>
-                <ProgressBar Grid.Column="3" Value="{Binding SystemRamUsage}" Maximum="100" Height="16" Background="{StaticResource BgBrush}" Foreground="{StaticResource SuccessBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
+                <StackPanel Grid.Column="2" Margin="16,0,8,0">
+                    <TextBlock Text="RAM" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding SystemRamUsage, StringFormat='{}{0:F1}%'}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ProgressBar Grid.Column="3" Value="{Binding SystemRamUsage}" Maximum="100" Height="14" Background="{StaticResource BgBrush}" Foreground="{StaticResource SuccessBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" VerticalAlignment="Center"/>
 
                 <!-- System Info Text -->
                 <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -643,7 +709,11 @@
                           Style="{StaticResource DarkDataGrid}"
                           ItemsSource="{Binding Processes}"
                           SelectedItem="{Binding SelectedProcess}"
-                          Visibility="{Binding IsTreeView, Converter={StaticResource BoolToVisibilityInverted}}">
+                          Visibility="{Binding IsTreeView, Converter={StaticResource BoolToVisibilityInverted}}"
+                          EnableRowVirtualization="True"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          ContextMenu="{StaticResource ProcessContextMenu}"
+                          ContextMenuOpening="OnProcessContextMenuOpening">
 
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="PID"
@@ -702,7 +772,9 @@
                           BorderBrush="{StaticResource BorderBrush}"
                           BorderThickness="0"
                           FontFamily="Cascadia Mono, Consolas, Courier New"
-                          FontSize="12">
+                          FontSize="12"
+                          ContextMenu="{StaticResource ProcessContextMenu}"
+                          ContextMenuOpening="OnProcessContextMenuOpening">
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="TreeViewItem">
                             <Setter Property="IsExpanded" Value="True"/>
