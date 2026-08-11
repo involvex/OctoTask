@@ -4,18 +4,35 @@
              xmlns:local="clr-namespace:OctoTask"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <!-- Shared brushes -->
+        <SolidColorBrush x:Key="BgBrush" Color="#0f172a"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#1e293b"/>
+        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#273549"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#334155"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#f1f5f9"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94a3b8"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748b"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#3b82f6"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#60a5fa"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#10b981"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#f59e0b"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#ef4444"/>
+        <SolidColorBrush x:Key="DangerHoverBrush" Color="#f87171"/>
+
+        <!-- Global styles -->
         <Style TargetType="Window">
-            <Setter Property="Background" Value="#0f172a"/>
-            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
         </Style>
 
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="FontSize" Value="13"/>
         </Style>
 
         <Style TargetType="MenuItem">
-            <Setter Property="Background" Value="#0f172a"/>
-            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
         </Style>
     </Application.Resources>
 </Application>
