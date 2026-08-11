@@ -4,21 +4,18 @@
              xmlns:local="clr-namespace:OctoTask"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="BgBrush" Color="#0d1117"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#c9d1d9"/>
-
         <Style TargetType="Window">
-            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Background" Value="#0f172a"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
         </Style>
 
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
         </Style>
 
         <Style TargetType="MenuItem">
-            <Setter Property="Background" Value="{StaticResource BgBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Background" Value="#0f172a"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
         </Style>
     </Application.Resources>
 </Application>

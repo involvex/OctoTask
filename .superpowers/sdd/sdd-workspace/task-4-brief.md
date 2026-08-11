@@ -1,3 +1,32 @@
+# Task 4: Create `PortViewerControl` (XAML + Code-behind)
+
+**Files:**
+- Create: `UI/Views/PortViewerControl.xaml`
+- Create: `UI/Views/PortViewerControl.xaml.cs`
+
+**Interfaces:**
+- Consumes: `PortViewModel` from Task 3 (set as DataContext)
+
+## What To Do
+
+Create a WPF UserControl for the port viewer. The XAML has a search/filter toolbar at the top and a DataGrid showing connections below. The code-behind handles double-click and button events.
+
+The dark theme uses these brushes (defined in MainWindow.xaml):
+- BgBrush: #0f172a
+- SurfaceBrush: #1e293b
+- SurfaceAltBrush: #273549
+- BorderBrush: #334155
+- TextPrimary: #f1f5f9
+- TextSecondary: #94a3b8
+- AccentBrush: #3b82f6
+
+The ToolbarButton style is already defined in MainWindow.xaml for use by toolbar buttons.
+
+## XAML File
+
+Create `UI/Views/PortViewerControl.xaml`:
+
+```xml
 <UserControl x:Class="OctoTask.UI.Views.PortViewerControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -53,8 +82,7 @@
                            VerticalAlignment="Center" Margin="12,0,8,0" FontSize="12"/>
                 <ComboBox Grid.Column="3" Width="80" Height="24"
                           VerticalAlignment="Center"
-                          SelectedValue="{Binding ProtocolFilter}"
-                          SelectedValuePath="Content"
+                          SelectedItem="{Binding ProtocolFilter}"
                           Background="{StaticResource BgBrush}"
                           Foreground="{StaticResource TextPrimary}"
                           BorderBrush="{StaticResource BorderBrush}"
@@ -172,3 +200,47 @@
         </DataGrid>
     </DockPanel>
 </UserControl>
+```
+
+## Code-behind File
+
+Create `UI/Views/PortViewerControl.xaml.cs`:
+
+```csharp
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using OctoTask.UI.ViewModels;
+
+namespace OctoTask.UI.Views
+{
+    public partial class PortViewerControl : UserControl
+    {
+        public PortViewerControl()
+        {
+            InitializeComponent();
+        }
+
+        private void OnDataGridDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is PortViewModel vm && vm.CanGoToProcess)
+            {
+                vm.GoToProcess();
+            }
+        }
+
+        private void OnGoToProcessClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is PortViewModel vm && vm.CanGoToProcess)
+            {
+                vm.GoToProcess();
+            }
+        }
+    }
+}
+```
+
+## Verification
+
+Run: `dotnet build OctoTask.csproj`
+Expected: BUILD SUCCEEDED

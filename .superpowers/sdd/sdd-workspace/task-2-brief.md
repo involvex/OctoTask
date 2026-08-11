@@ -1,3 +1,17 @@
+# Task 2: Create `NetworkInterop` — IP Helper API P/Invoke
+
+**Files:**
+- Create: `Core/Native/NetworkInterop.cs`
+
+**Interfaces:**
+- Consumes: `OctoTask.Core.Models.ConnectionInfo`, `OctoTask.Core.Models.ConnectionProtocol`, `OctoTask.Core.Models.ConnectionState` (from Task 1)
+- Produces: `NetworkInterop.GetTcpConnections()` → `List<ConnectionInfo>`, `NetworkInterop.GetUdpListeners()` → `List<ConnectionInfo>`, `NetworkInterop.GetAllConnections()` → `List<ConnectionInfo>`
+
+## What To Do
+
+Create a P/Invoke wrapper for the Windows IP Helper API to enumerate TCP connections and UDP listeners natively. This replaces `netstat -ano` without shelling out.
+
+```csharp
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -74,7 +88,7 @@ namespace OctoTask.Core.Native
             uint reserved);
 
         [DllImport("ws2_32.dll")]
-        private static extern ushort ntohs(ushort netshort);
+        private static extern uint ntohs(uint netshort);
 
         #endregion
 
@@ -243,3 +257,9 @@ namespace OctoTask.Core.Native
         #endregion
     }
 }
+```
+
+## Verification
+
+Run: `dotnet build OctoTask.csproj`
+Expected: BUILD SUCCEEDED

@@ -15,6 +15,24 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash.log"),
+                $"[{DateTime.Now}] Unhandled exception:\n{args.Exception}");
+            MessageBox.Show(args.Exception.ToString(), "OctoTask Crash", MessageBoxButton.OK, MessageBoxImage.Error);
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash.log"),
+                $"[{DateTime.Now}] AppDomain exception:\n{args.ExceptionObject}");
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash.log"),
+                $"[{DateTime.Now}] Task exception:\n{args.Exception}");
+        };
+
         base.OnStartup(e);
 
         SilentMode = e.Args.Contains("--no-ui", StringComparer.OrdinalIgnoreCase) ||
