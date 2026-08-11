@@ -12,8 +12,8 @@
     <DockPanel>
         <!-- Toolbar: search + filter + refresh -->
         <Border DockPanel.Dock="Top"
-                Background="{StaticResource SurfaceBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="8,6">
             <Grid>
@@ -30,14 +30,14 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Port search -->
-                <TextBlock Grid.Column="0" Text="Port:" Foreground="{StaticResource TextSecondary}"
+                <TextBlock Grid.Column="0" Text="Port:" Foreground="{DynamicResource TextSecondary}"
                            VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
                 <TextBox Grid.Column="1" Width="100" Height="24"
                          VerticalAlignment="Center"
                          Text="{Binding PortFilter, UpdateSourceTrigger=PropertyChanged}"
-                         Background="{StaticResource BgBrush}"
-                         Foreground="{StaticResource TextPrimary}"
-                         BorderBrush="{StaticResource BorderBrush}"
+                         Background="{DynamicResource BgBrush}"
+                         Foreground="{DynamicResource TextPrimary}"
+                         BorderBrush="{DynamicResource BorderBrush}"
                          BorderThickness="1"
                          FontFamily="Cascadia Mono, Consolas, Courier New"
                          FontSize="12" Padding="6,2">
@@ -49,15 +49,15 @@
                 </TextBox>
 
                 <!-- Protocol filter -->
-                <TextBlock Grid.Column="2" Text="Protocol:" Foreground="{StaticResource TextSecondary}"
+                <TextBlock Grid.Column="2" Text="Protocol:" Foreground="{DynamicResource TextSecondary}"
                            VerticalAlignment="Center" Margin="12,0,8,0" FontSize="12"/>
                 <ComboBox Grid.Column="3" Width="80" Height="24"
                           VerticalAlignment="Center"
                           SelectedValue="{Binding ProtocolFilter}"
                           SelectedValuePath="Content"
-                          Background="{StaticResource BgBrush}"
-                          Foreground="{StaticResource TextPrimary}"
-                          BorderBrush="{StaticResource BorderBrush}"
+                          Background="{DynamicResource BgBrush}"
+                          Foreground="{DynamicResource TextPrimary}"
+                          BorderBrush="{DynamicResource BorderBrush}"
                           BorderThickness="1" FontSize="12">
                     <ComboBoxItem Content="All" IsSelected="True"/>
                     <ComboBoxItem Content="TCP"/>
@@ -71,12 +71,12 @@
                 <Button Grid.Column="5"
                         Command="{Binding RefreshCommand}"
                         Content="&#x27F3; Refresh"
-                        Style="{StaticResource ToolbarButton}"/>
+                        Style="{DynamicResource ToolbarButton}"/>
 
                 <CheckBox Grid.Column="6"
                           IsChecked="{Binding IsAutoRefreshEnabled}"
                           Content="Auto (5s)"
-                          Foreground="{StaticResource TextSecondary}"
+                          Foreground="{DynamicResource TextSecondary}"
                           Margin="8,0,0,0"
                           VerticalAlignment="Center"/>
 
@@ -86,7 +86,7 @@
                 <!-- Go to Process button -->
                 <Button Grid.Column="8"
                         Content="&#x2192; Go to Process"
-                        Style="{StaticResource ToolbarButton}"
+                        Style="{DynamicResource ToolbarButton}"
                         IsEnabled="{Binding CanGoToProcess}"
                         Click="OnGoToProcessClick"/>
             </Grid>
@@ -98,14 +98,14 @@
                   IsReadOnly="True"
                   SelectionMode="Single"
                   SelectedItem="{Binding SelectedConnection}"
-                  Background="{StaticResource BgBrush}"
-                  Foreground="{StaticResource TextPrimary}"
-                  BorderBrush="{StaticResource BorderBrush}"
+                  Background="{DynamicResource BgBrush}"
+                  Foreground="{DynamicResource TextPrimary}"
+                  BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="0"
                   GridLinesVisibility="None"
                   HeadersVisibility="Column"
-                  RowBackground="{StaticResource BgBrush}"
-                  AlternatingRowBackground="{StaticResource SurfaceBrush}"
+                  RowBackground="{DynamicResource BgBrush}"
+                  AlternatingRowBackground="{DynamicResource SurfaceBrush}"
                   CanUserAddRows="False"
                   CanUserSortColumns="True"
                   CanUserResizeColumns="True"
