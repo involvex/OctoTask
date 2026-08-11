@@ -6,6 +6,7 @@
          xmlns:vm="clr-namespace:OctoTask.UI.ViewModels"
          xmlns:conv="clr-namespace:OctoTask.UI.Converters"
          xmlns:local="clr-namespace:OctoTask"
+         xmlns:views="clr-namespace:OctoTask.UI.Views"
         mc:Ignorable="d"
         Title="OctoTask"
         Height="700" Width="1200"
@@ -294,6 +295,54 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- TabControl style -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <!-- TabItem style -->
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1,1,1,0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6,6,0,0"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="2,0,2,0">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource SurfaceAltBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource BgBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Border" Property="BorderThickness" Value="1,2,1,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -418,8 +467,17 @@
                     IsEnabled="{Binding CanKillProcess}"/>
         </ToolBar>
 
-        <!-- Main content: DataGrid + Details -->
-        <DockPanel Grid.Row="2">
+        <!-- Main content: TabControl with Processes and Ports tabs -->
+        <TabControl x:Name="MainTabControl" Grid.Row="2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="0">
+            <!-- Processes Tab -->
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text=" Processes " FontSize="12" Padding="4,2"/>
+                </TabItem.Header>
+                <DockPanel>
              <Border x:Name="DetailsPane"
                      Background="{StaticResource SurfaceBrush}"
                      BorderBrush="{StaticResource BorderBrush}"
@@ -694,6 +752,16 @@
                 </TreeView>
             </Grid>
         </DockPanel>
+            </TabItem>
+
+            <!-- Ports Tab -->
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text=" Ports " FontSize="12" Padding="4,2"/>
+                </TabItem.Header>
+                <views:PortViewerControl DataContext="{Binding PortVM}"/>
+            </TabItem>
+        </TabControl>
 
         <!-- Status bar -->
         <Border Grid.Row="3" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
