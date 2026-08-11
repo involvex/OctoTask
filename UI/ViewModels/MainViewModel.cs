@@ -39,9 +39,11 @@ namespace OctoTask.UI.ViewModels
         // CPU sampling: store last TotalProcessorTime per PID
         private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes = new();
         private readonly Stopwatch _cpuStopwatch = new();
+        private readonly PortViewModel _portVM;
 
         public ObservableCollection<ProcessInfo> Processes { get; }
         public ObservableCollection<ProcessInfo> ProcessTree { get; } = new();
+        public PortViewModel PortVM => _portVM;
 
         public bool IsTreeView
         {
@@ -214,6 +216,9 @@ namespace OctoTask.UI.ViewModels
 
             _currentSortColumn = nameof(ProcessInfo.ProcessName);
             _sortClickCount = 1;
+
+            _portVM = new PortViewModel();
+            _portVM.GoToProcessRequested += SelectProcessByPid;
         }
 
         private bool FilterPredicate(object? obj)
@@ -570,6 +575,20 @@ namespace OctoTask.UI.ViewModels
                     parent.Children.Add(p);
                 else
                     ProcessTree.Add(p);
+            }
+        }
+
+        public void SelectProcessByPid(int pid)
+        {
+            var match = Processes.FirstOrDefault(p => p.Pid == pid);
+            if (match != null)
+            {
+                SelectedProcess = match;
+                IsTreeView = false;
+            }
+            else
+            {
+                StatusText = $"PID {pid} not found in process list — try refreshing first";
             }
         }
 
