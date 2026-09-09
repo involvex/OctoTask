@@ -37,11 +37,13 @@ public partial class MainWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _viewModel.RefreshProcesses();
+        RestoreColumnLayout();
 
         if (ProcessDataGrid != null)
         {
             ProcessDataGrid.Sorting += OnDataGridSorting;
             ProcessDataGrid.ContextMenuOpening += OnProcessContextMenuOpening;
+            ProcessDataGrid.Loaded += (_, _) => RestoreColumnWidths();
         }
 
         if (ProcessTreeView != null)
@@ -182,6 +184,7 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        SaveColumnLayout();
         _trayIcon.RemoveIcon();
         if (_currentIcon != IntPtr.Zero)
         {
@@ -298,4 +301,73 @@ public partial class MainWindow : Window
 
     private static void DestroyIcon(IntPtr hIcon)
         => TrayIconRenderer.DestroyIconIndirect(hIcon);
+
+    public void FocusSearchBox()
+    {
+        SearchBox?.Focus();
+        SearchBox?.SelectAll();
+    }
+
+    private void RestoreColumnLayout()
+    {
+        try
+        {
+            var settings = Core.Settings.AppSettings.Load();
+            _viewModel.RestoreSortState(settings.SortColumn, settings.SortDirection);
+        }
+        catch
+        {
+        }
+    }
+
+    private void RestoreColumnWidths()
+    {
+        try
+        {
+            if (ProcessDataGrid == null)
+                return;
+
+            var settings = Core.Settings.AppSettings.Load();
+            foreach (var column in ProcessDataGrid.Columns)
+            {
+                var key = column.SortMemberPath ?? column.Header?.ToString() ?? string.Empty;
+                if (!string.IsNullOrEmpty(key) && settings.ColumnWidths.TryGetValue(key, out double width))
+                {
+                    column.Width = new DataGridLength(width);
+                }
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void SaveColumnLayout()
+    {
+        try
+        {
+            var settings = Core.Settings.AppSettings.Load();
+            var (sortCol, sortDir) = _viewModel.GetSortState();
+            settings.SortColumn = sortCol;
+            settings.SortDirection = sortDir;
+
+            if (ProcessDataGrid != null)
+            {
+                settings.ColumnWidths.Clear();
+                foreach (var column in ProcessDataGrid.Columns)
+                {
+                    var key = column.SortMemberPath ?? column.Header?.ToString() ?? string.Empty;
+                    if (!string.IsNullOrEmpty(key) && column.Width.IsAbsolute)
+                    {
+                        settings.ColumnWidths[key] = column.Width.Value;
+                    }
+                }
+            }
+
+            settings.Save();
+        }
+        catch
+        {
+        }
+    }
 }

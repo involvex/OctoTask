@@ -9,10 +9,17 @@
          xmlns:views="clr-namespace:OctoTask.UI.Views"
         mc:Ignorable="d"
         Title="OctoTask"
+        Icon="/OctoTask;component/Resources/octotask.ico"
         Height="700" Width="1200"
         WindowStartupLocation="CenterScreen"
         MinHeight="400" MinWidth="800"
         FontFamily="Cascadia Mono, Consolas, Courier New">
+    <Window.InputBindings>
+        <KeyBinding Key="R" Modifiers="Control" Command="{Binding RefreshCommand}"/>
+        <KeyBinding Key="K" Modifiers="Control" Command="{Binding KillProcessCommand}"/>
+        <KeyBinding Key="F" Modifiers="Control" Command="{Binding FocusSearchCommand}"/>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SuspendProcessCommand}"/>
+    </Window.InputBindings>
 
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>

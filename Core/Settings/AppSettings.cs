@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
 
@@ -14,6 +15,9 @@ public class AppSettings
     public TrayDisplayMode TrayDisplayMode { get; set; } = TrayDisplayMode.Cpu;
     public bool MinimizeToTray { get; set; } = true;
     public int UpdateIntervalMs { get; set; } = 2000;
+    public string? SortColumn { get; set; }
+    public ListSortDirection? SortDirection { get; set; }
+    public Dictionary<string, double> ColumnWidths { get; set; } = new();
 
     private static string SettingsDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OctoTask");
@@ -56,7 +60,7 @@ public class AppSettings
         }
         catch
             {
-            // Silently fail — settings are non-critical
-        }
+                // Silently fail — settings are non-critical
+            }
     }
 }

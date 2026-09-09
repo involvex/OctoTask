@@ -11,6 +11,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Management;
 using System.Windows.Threading;
+using OctoTask;
 using OctoTask.Core.Models;
 using OctoTask.Core.Native;
 using OctoTask.Core.Registry;
@@ -67,6 +68,7 @@ namespace OctoTask.UI.ViewModels
         public ICommand ExportCsvCommand { get; }
         public ICommand ExportJsonCommand { get; }
         public ICommand OpenTraySettingsCommand { get; }
+        public ICommand FocusSearchCommand { get; }
 
         private ProcessDetails? _processDetails;
 
@@ -223,6 +225,11 @@ namespace OctoTask.UI.ViewModels
                 {
                     // Settings reloaded by MainWindow if needed
                 }
+            });
+            FocusSearchCommand = new RelayCommand(_ =>
+            {
+                if (System.Windows.Application.Current.MainWindow is MainWindow mainWindow)
+                    mainWindow.FocusSearchBox();
             });
 
             _currentSortColumn = nameof(ProcessInfo.ProcessName);
@@ -723,7 +730,9 @@ namespace OctoTask.UI.ViewModels
 
         public void SetSort(string columnName)
         {
-            // 3-click cycle: Ascending → Descending → None (unsorted)
+            if (string.IsNullOrEmpty(columnName))
+                return;
+
             if (_currentSortColumn == columnName)
             {
                 _sortClickCount++;
@@ -747,9 +756,27 @@ namespace OctoTask.UI.ViewModels
                     _collectionView.SortDescriptions.Add(new SortDescription(columnName, ListSortDirection.Descending));
                     break;
                 case 3:
-                    // No sort — unsorted
                     break;
             }
+        }
+
+        public void RestoreSortState(string? column, ListSortDirection? direction)
+        {
+            if (string.IsNullOrEmpty(column) || direction is not ListSortDirection dir)
+                return;
+
+            _currentSortColumn = column;
+            _sortClickCount = dir == ListSortDirection.Descending ? 2 : 1;
+            SetSort(column);
+        }
+
+        public (string? Column, ListSortDirection? Direction) GetSortState()
+        {
+            if (_collectionView.SortDescriptions.Count == 0)
+                return (null, null);
+
+            var desc = _collectionView.SortDescriptions[0];
+            return (desc.PropertyName, desc.Direction);
         }
 
         #endregion
