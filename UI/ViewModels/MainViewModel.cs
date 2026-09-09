@@ -320,70 +320,81 @@ namespace OctoTask.UI.ViewModels
 
             int processorCount = Environment.ProcessorCount;
             var newCpuTimes = new Dictionary<int, TimeSpan>();
-            var cpuLookup = new Dictionary<int, TimeSpan>();
-
-            // Single enumeration: get CPU times for all processes
-            foreach (Process proc in Process.GetProcesses().Where(p => { try { return !p.HasExited; } catch { return false; } }))
-            {
-                try
-                {
-                    TimeSpan currentCpu = proc.TotalProcessorTime;
-                    newCpuTimes[proc.Id] = currentCpu;
-
-                    if (elapsed.TotalSeconds > 0)
-                        cpuLookup[proc.Id] = currentCpu;
-                }
-                catch
-                {
-                }
-            }
-
-            // Build the process snapshot list
             var processList = new List<ProcessSnapshot>();
             ulong totalWorkingSet = 0;
             double totalCpu = 0;
 
-            foreach (var proc in Process.GetProcesses().Where(p => { try { return !p.HasExited; } catch { return false; } }))
+            Process[] procs;
+            try
             {
-                try
+                procs = Process.GetProcesses();
+            }
+            catch
+            {
+                procs = Array.Empty<Process>();
+            }
+
+            try
+            {
+                foreach (var proc in procs)
                 {
-                    var info = ProcessInterop.ReadProcessFromPeb(proc);
-                    if (info == null)
-                        continue;
-
-                    var snap = new ProcessSnapshot
+                    try
                     {
-                        Pid = info.Pid,
-                        ProcessName = info.ProcessName,
-                        ExecutablePath = info.ExecutablePath,
-                        CommandLine = info.CommandLine,
-                        WorkingSetBytes = proc.WorkingSet64,
-                    };
+                        if (proc.HasExited)
+                            continue;
 
-                    if (_lastCpuTimes.TryGetValue(proc.Id, out TimeSpan lastCpu) && cpuLookup.TryGetValue(proc.Id, out TimeSpan currentCpu))
-                    {
-                        double cpuTimeDeltaMs = (currentCpu - lastCpu).TotalMilliseconds;
-                        double wallClockMs = elapsed.TotalMilliseconds;
-                        double cpuPercent = Math.Max(0, Math.Min(100, (cpuTimeDeltaMs / wallClockMs / processorCount) * 100));
-                        snap.CpuPercentage = cpuPercent;
-                        snap.TotalProcessorTime = currentCpu;
-                        totalCpu += cpuPercent;
+                        TimeSpan currentCpu = proc.TotalProcessorTime;
+                        newCpuTimes[proc.Id] = currentCpu;
+
+                        var info = ProcessInterop.ReadProcessFromPeb(proc);
+                        if (info == null)
+                            continue;
+
+                        var snap = new ProcessSnapshot
+                        {
+                            Pid = info.Pid,
+                            ProcessName = info.ProcessName,
+                            ExecutablePath = info.ExecutablePath,
+                            CommandLine = info.CommandLine,
+                            WorkingSetBytes = proc.WorkingSet64,
+                        };
+
+                        if (_lastCpuTimes.TryGetValue(proc.Id, out TimeSpan lastCpu))
+                        {
+                            double cpuTimeDeltaMs = (currentCpu - lastCpu).TotalMilliseconds;
+                            double wallClockMs = elapsed.TotalMilliseconds;
+                            double cpuPercent = Math.Max(0, Math.Min(100, (cpuTimeDeltaMs / wallClockMs / processorCount) * 100));
+                            snap.CpuPercentage = cpuPercent;
+                            snap.TotalProcessorTime = currentCpu;
+                            totalCpu += cpuPercent;
+                        }
+                        else
+                        {
+                            snap.TotalProcessorTime = currentCpu;
+                        }
+
+                        if (totalRam > 0)
+                        {
+                            snap.WorkingSetPercentage = (snap.WorkingSetBytes / (double)totalRam) * 100;
+                            totalWorkingSet += (ulong)snap.WorkingSetBytes;
+                        }
+
+                        processList.Add(snap);
                     }
-                    else
+                    catch
                     {
-                        snap.TotalProcessorTime = cpuLookup.GetValueOrDefault(proc.Id, TimeSpan.Zero);
                     }
-
-                    if (totalRam > 0)
+                    finally
                     {
-                        snap.WorkingSetPercentage = (snap.WorkingSetBytes / (double)totalRam) * 100;
-                        totalWorkingSet += (ulong)snap.WorkingSetBytes;
+                        try { proc.Dispose(); } catch { }
                     }
-
-                    processList.Add(snap);
                 }
-                catch
+            }
+            finally
+            {
+                foreach (var proc in procs)
                 {
+                    try { proc.Dispose(); } catch { }
                 }
             }
 
