@@ -255,7 +255,7 @@ namespace OctoTask.UI.ViewModels
                    (process.CommandLine?.ToLowerInvariant().Contains(lowerFilter) ?? false);
         }
 
-        public async void RefreshProcesses()
+        public async Task RefreshProcessesAsync()
         {
             if (IsBusy)
                 return;
@@ -289,6 +289,11 @@ namespace OctoTask.UI.ViewModels
             {
                 IsBusy = false;
             }
+        }
+
+        public void RefreshProcesses()
+        {
+            _ = RefreshProcessesAsync();
         }
 
         private class ProcessSnapshot
@@ -433,25 +438,29 @@ namespace OctoTask.UI.ViewModels
             var toUpdate = oldLookup.Keys.Intersect(newLookup.Keys).ToList();
             var toAdd = newLookup.Keys.Except(oldLookup.Keys).ToList();
 
-            foreach (int pid in toRemove)
-                Processes.Remove(oldLookup[pid]);
-
-            foreach (int pid in toUpdate)
+            var dispatcher = System.Windows.Application.Current.Dispatcher;
+            using (dispatcher.DisableProcessing())
             {
-                var oldP = oldLookup[pid];
-                var newP = newLookup[pid];
-                oldP.WorkingSetBytes = newP.WorkingSetBytes;
-                oldP.WorkingSetPercentage = newP.WorkingSetPercentage;
-                oldP.CpuPercentage = newP.CpuPercentage;
-                oldP.TotalProcessorTime = newP.TotalProcessorTime;
-                oldP.ExecutablePath = newP.ExecutablePath;
-                oldP.CommandLine = newP.CommandLine;
-                oldP.ProcessName = newP.ProcessName;
-            }
+                foreach (int pid in toRemove)
+                    Processes.Remove(oldLookup[pid]);
 
-            var sortedNew = toAdd.Select(pid => newLookup[pid]).OrderBy(p => p.ProcessName).ToList();
-            foreach (var p in sortedNew)
-                Processes.Add(p);
+                foreach (int pid in toUpdate)
+                {
+                    var oldP = oldLookup[pid];
+                    var newP = newLookup[pid];
+                    oldP.WorkingSetBytes = newP.WorkingSetBytes;
+                    oldP.WorkingSetPercentage = newP.WorkingSetPercentage;
+                    oldP.CpuPercentage = newP.CpuPercentage;
+                    oldP.TotalProcessorTime = newP.TotalProcessorTime;
+                    oldP.ExecutablePath = newP.ExecutablePath;
+                    oldP.CommandLine = newP.CommandLine;
+                    oldP.ProcessName = newP.ProcessName;
+                }
+
+                var sortedNew = toAdd.Select(pid => newLookup[pid]).OrderBy(p => p.ProcessName).ToList();
+                foreach (var p in sortedNew)
+                    Processes.Add(p);
+            }
         }
 
         private void BuildProcessTree(List<ProcessInfo> processList)

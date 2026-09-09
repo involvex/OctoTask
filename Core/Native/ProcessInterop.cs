@@ -560,7 +560,22 @@ namespace OctoTask.Core.Native
             if (!ntPath.StartsWith("\\Device\\HarddiskVolume", StringComparison.OrdinalIgnoreCase))
                 return ntPath;
 
-            // Try to find matching drive letter using System.Management
+            string volumePart = ntPath.Split('\\')[2];
+            if (!_ntToDosCache.TryGetValue(volumePart, out string? dosPath))
+            {
+                dosPath = ResolveNtToDosPath(volumePart);
+                if (dosPath != null)
+                    _ntToDosCache[volumePart] = dosPath;
+            }
+
+            if (dosPath != null)
+                return ntPath.Replace("\\Device\\" + ntPath.Split('\\')[1] + "\\" + volumePart, dosPath);
+
+            return ntPath;
+        }
+
+        private static string? ResolveNtToDosPath(string volumePart)
+        {
             try
             {
                 using var searcher = new System.Management.ManagementObjectSearcher(
@@ -570,23 +585,18 @@ namespace OctoTask.Core.Native
                     string deviceId = disk["DeviceID"]?.ToString() ?? "";
                     string name = disk["Name"]?.ToString() ?? "";
 
-                    // DeviceID looks like "\\.\\C:", we need to compare with volume number
-                    string volumePart = ntPath.Split('\\')[2]; // e.g., "HarddiskVolume3"
                     if (deviceId.Contains(volumePart.Replace("Harddisk", ""), StringComparison.OrdinalIgnoreCase))
-                    {
-                        return ntPath.Replace(
-                            "\\Device\\" + ntPath.Split('\\')[1] + "\\" + ntPath.Split('\\')[2],
-                            name);
-                    }
+                        return name;
                 }
             }
             catch
             {
-                // Fallback: return as-is
             }
 
-            return ntPath;
+            return null;
         }
+
+        private static readonly Dictionary<string, string?> _ntToDosCache = new(StringComparer.OrdinalIgnoreCase);
 
         private static string GetModuleFileNameFallback(IntPtr hProcess, Process proc)
         {
