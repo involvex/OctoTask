@@ -9,7 +9,7 @@
 
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources\octotask.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <DpiAwareness>PerMonitorV2</DpiAwareness>
   </PropertyGroup>
 
   <ItemGroup>
