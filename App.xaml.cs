@@ -6,6 +6,57 @@ using OctoTask.Core.Registry;
 
 namespace OctoTask;
 
+internal static class CrashLog
+{
+    private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, "crash.log");
+    private const long MaxSizeBytes = 1 * 1024 * 1024;
+    private const int MaxBackups = 3;
+
+    public static void Write(string message)
+    {
+        try
+        {
+            RotateIfNeeded();
+            File.AppendAllText(LogPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
+    }
+
+    private static void RotateIfNeeded()
+    {
+        if (!File.Exists(LogPath))
+            return;
+
+        try
+        {
+            var info = new FileInfo(LogPath);
+            if (info.Length < MaxSizeBytes)
+                return;
+        }
+        catch
+        {
+            return;
+        }
+
+        var oldest = $"{LogPath}.{MaxBackups}";
+        if (File.Exists(oldest))
+            File.Delete(oldest);
+
+        for (int i = MaxBackups - 1; i >= 1; i--)
+        {
+            var src = $"{LogPath}.{i}";
+            var dst = $"{LogPath}.{i + 1}";
+            if (File.Exists(src))
+                File.Move(src, dst);
+        }
+
+        if (File.Exists(LogPath))
+            File.Move(LogPath, $"{LogPath}.1");
+    }
+}
+
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
@@ -17,20 +68,17 @@ public partial class App : Application
     {
         DispatcherUnhandledException += (_, args) =>
         {
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash.log"),
-                $"[{DateTime.Now}] Unhandled exception:\n{args.Exception}");
+            CrashLog.Write($"Unhandled exception:\n{args.Exception}");
             MessageBox.Show(args.Exception.ToString(), "OctoTask Crash", MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash.log"),
-                $"[{DateTime.Now}] AppDomain exception:\n{args.ExceptionObject}");
+            CrashLog.Write($"AppDomain exception:\n{args.ExceptionObject}");
         };
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash.log"),
-                $"[{DateTime.Now}] Task exception:\n{args.Exception}");
+            CrashLog.Write($"Task exception:\n{args.Exception}");
         };
 
         base.OnStartup(e);
