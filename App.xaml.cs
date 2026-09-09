@@ -63,6 +63,7 @@ internal static class CrashLog
 public partial class App : Application
 {
     public static bool SilentMode { get; private set; }
+    public static bool StartMinimized { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -85,6 +86,8 @@ public partial class App : Application
 
         SilentMode = e.Args.Contains("--no-ui", StringComparer.OrdinalIgnoreCase) ||
                      e.Args.Contains("--silent", StringComparer.OrdinalIgnoreCase);
+
+        StartMinimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
 
         // CLI mode
         if (e.Args.Length > 0)

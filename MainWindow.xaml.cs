@@ -53,6 +53,9 @@ public partial class MainWindow : Window
         }
 
         MainTabControl.SelectionChanged += OnTabChanged;
+
+        if (App.StartMinimized)
+            WindowState = WindowState.Minimized;
     }
 
         private void OnTreeViewSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
