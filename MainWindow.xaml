@@ -24,6 +24,7 @@
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
         <conv:BoolToVisibilityInvertedConverter x:Key="BoolToVisibilityInverted"/>
+        <conv:SearchHighlightConverter x:Key="SearchHighlightConverter"/>
 
         <!-- Global Button style: flat dark -->
         <Style TargetType="Button">
@@ -296,9 +297,11 @@
         <ContextMenu x:Key="ProcessContextMenu">
             <MenuItem Header="End Task" Command="{Binding KillProcessCommand}" Foreground="{StaticResource DangerBrush}"/>
             <MenuItem Header="Suspend" Command="{Binding SuspendProcessCommand}"/>
-            <MenuItem Header="Resume" Command="{Binding ResumeProcessCommand}"/>
-            <Separator/>
-            <MenuItem Header="Properties" Click="OnContextMenuProperties"/>
+                    <MenuItem Header="Resume" Command="{Binding ResumeProcessCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Go to Ports" Command="{Binding GoToPortsCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Properties" Click="OnContextMenuProperties"/>
             <Separator/>
             <MenuItem Header="Copy" >
                 <MenuItem Header="Process Name" Click="OnCopyProcessName"/>
@@ -523,6 +526,7 @@
 
         <!-- Main content: TabControl with Processes and Ports tabs -->
         <TabControl x:Name="MainTabControl" Grid.Row="2"
+                    SelectedIndex="{Binding SelectedTabIndex}"
                     Background="Transparent"
                     BorderThickness="0"
                     Padding="0">
@@ -734,10 +738,22 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Process"
-                                            Binding="{Binding ProcessName}"
-                                            SortMemberPath="ProcessName"
-                                            Width="180"/>
+                        <DataGridTemplateColumn Header="Process"
+                                                SortMemberPath="ProcessName"
+                                                Width="180">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding ProcessName}" Padding="4,0">
+                                        <TextBlock.Background>
+                                            <MultiBinding Converter="{StaticResource SearchHighlightConverter}">
+                                                <Binding Path="ProcessName"/>
+                                                <Binding Path="DataContext.FilterText" RelativeSource="{RelativeSource AncestorType=DataGrid}"/>
+                                            </MultiBinding>
+                                        </TextBlock.Background>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="RAM"
                                             Binding="{Binding WorkingSetDisplay, Mode=OneWay}"
                                             SortMemberPath="WorkingSetBytes"
@@ -760,14 +776,38 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Executable Path"
-                                            Binding="{Binding ExecutablePath}"
-                                            SortMemberPath="ExecutablePath"
-                                            Width="230"/>
-                        <DataGridTextColumn Header="Command Line"
-                                            Binding="{Binding CommandLine}"
-                                            SortMemberPath="CommandLine"
-                                            Width="*"/>
+                        <DataGridTemplateColumn Header="Executable Path"
+                                                SortMemberPath="ExecutablePath"
+                                                Width="230">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding ExecutablePath}" Padding="4,0" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Background>
+                                            <MultiBinding Converter="{StaticResource SearchHighlightConverter}">
+                                                <Binding Path="ExecutablePath"/>
+                                                <Binding Path="DataContext.FilterText" RelativeSource="{RelativeSource AncestorType=DataGrid}"/>
+                                            </MultiBinding>
+                                        </TextBlock.Background>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Command Line"
+                                                SortMemberPath="CommandLine"
+                                                Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding CommandLine}" Padding="4,0" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Background>
+                                            <MultiBinding Converter="{StaticResource SearchHighlightConverter}">
+                                                <Binding Path="CommandLine"/>
+                                                <Binding Path="DataContext.FilterText" RelativeSource="{RelativeSource AncestorType=DataGrid}"/>
+                                            </MultiBinding>
+                                        </TextBlock.Background>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -784,7 +824,7 @@
                           ContextMenuOpening="OnProcessContextMenuOpening">
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="TreeViewItem">
-                            <Setter Property="IsExpanded" Value="True"/>
+                            <Setter Property="IsExpanded" Value="False"/>
                             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                             <Setter Property="Background" Value="Transparent"/>
                             <Setter Property="BorderThickness" Value="0"/>

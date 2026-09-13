@@ -22,6 +22,7 @@ namespace OctoTask.UI.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly DispatcherTimer _refreshTimer;
+        private readonly DispatcherTimer _filterDebounceTimer;
         private readonly ICollectionView _collectionView;
         private ProcessInfo? _selectedProcess;
         private bool _isAutoRefreshEnabled = true;
@@ -36,6 +37,7 @@ namespace OctoTask.UI.ViewModels
         private ulong _systemRamTotal;
         private ulong _systemRamUsed;
         private bool _isTreeView;
+        private int _selectedTabIndex;
 
         private readonly ConcurrentDictionary<int, TimeSpan> _lastCpuTimes;
         private readonly Stopwatch _cpuStopwatch;
@@ -55,6 +57,12 @@ namespace OctoTask.UI.ViewModels
             set { _isTreeView = value; OnPropertyChanged(); }
         }
 
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set { _selectedTabIndex = value; OnPropertyChanged(); }
+        }
+
         public ICommand RefreshCommand { get; }
         public ICommand InstallHookCommand { get; }
         public ICommand UninstallHookCommand { get; }
@@ -69,6 +77,7 @@ namespace OctoTask.UI.ViewModels
         public ICommand ExportJsonCommand { get; }
         public ICommand OpenTraySettingsCommand { get; }
         public ICommand FocusSearchCommand { get; }
+        public ICommand GoToPortsCommand { get; }
 
         private ProcessDetails? _processDetails;
 
@@ -126,8 +135,8 @@ namespace OctoTask.UI.ViewModels
                 _filterText = value ?? string.Empty;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanClearFilter));
-                _collectionView.Filter = string.IsNullOrWhiteSpace(_filterText) ? null : FilterPredicate;
-                _collectionView.Refresh();
+                _filterDebounceTimer.Stop();
+                _filterDebounceTimer.Start();
             }
         }
 
@@ -202,6 +211,12 @@ namespace OctoTask.UI.ViewModels
             _refreshTimer.Tick += (_, _) => RefreshProcesses();
             _refreshTimer.IsEnabled = IsAutoRefreshEnabled;
 
+            _filterDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            _filterDebounceTimer.Tick += (_, _) => ApplyFilter();
+
             _collectionView = CollectionViewSource.GetDefaultView(Processes);
             _collectionView.SortDescriptions.Add(new SortDescription(nameof(ProcessInfo.ProcessName), ListSortDirection.Ascending));
 
@@ -231,12 +246,19 @@ namespace OctoTask.UI.ViewModels
                 if (System.Windows.Application.Current.MainWindow is MainWindow mainWindow)
                     mainWindow.FocusSearchBox();
             });
+            GoToPortsCommand = new RelayCommand(_ => GoToPorts(), _ => SelectedProcess != null);
 
             _currentSortColumn = nameof(ProcessInfo.ProcessName);
             _sortClickCount = 1;
 
             _portVM = new PortViewModel();
             _portVM.GoToProcessRequested += SelectProcessByPid;
+        }
+
+        private void ApplyFilter()
+        {
+            _collectionView.Filter = string.IsNullOrWhiteSpace(_filterText) ? null : FilterPredicate;
+            _collectionView.Refresh();
         }
 
         private bool FilterPredicate(object? obj)
@@ -270,6 +292,8 @@ namespace OctoTask.UI.ViewModels
 
                 // Apply incremental changes on UI thread
                 ApplyRefreshResult(snapshot);
+
+                BuildProcessTree(Processes.ToList());
 
                 // Update system telemetry on UI thread
                 SystemRamTotal = snapshot.TotalRam;
@@ -459,13 +483,13 @@ namespace OctoTask.UI.ViewModels
                 {
                     var oldP = oldLookup[pid];
                     var newP = newLookup[pid];
-                    oldP.WorkingSetBytes = newP.WorkingSetBytes;
-                    oldP.WorkingSetPercentage = newP.WorkingSetPercentage;
-                    oldP.CpuPercentage = newP.CpuPercentage;
-                    oldP.TotalProcessorTime = newP.TotalProcessorTime;
-                    oldP.ExecutablePath = newP.ExecutablePath;
-                    oldP.CommandLine = newP.CommandLine;
-                    oldP.ProcessName = newP.ProcessName;
+                    if (oldP.WorkingSetBytes != newP.WorkingSetBytes) oldP.WorkingSetBytes = newP.WorkingSetBytes;
+                    if (oldP.WorkingSetPercentage != newP.WorkingSetPercentage) oldP.WorkingSetPercentage = newP.WorkingSetPercentage;
+                    if (oldP.CpuPercentage != newP.CpuPercentage) oldP.CpuPercentage = newP.CpuPercentage;
+                    if (oldP.TotalProcessorTime != newP.TotalProcessorTime) oldP.TotalProcessorTime = newP.TotalProcessorTime;
+                    if (oldP.ExecutablePath != newP.ExecutablePath) oldP.ExecutablePath = newP.ExecutablePath;
+                    if (oldP.CommandLine != newP.CommandLine) oldP.CommandLine = newP.CommandLine;
+                    if (oldP.ProcessName != newP.ProcessName) oldP.ProcessName = newP.ProcessName;
                 }
 
                 var sortedNew = toAdd.Select(pid => newLookup[pid]).OrderBy(p => p.ProcessName).ToList();
@@ -744,6 +768,16 @@ namespace OctoTask.UI.ViewModels
             {
                 StatusText = $"PID {pid} not found in process list — try refreshing first";
             }
+        }
+
+        private void GoToPorts()
+        {
+            if (SelectedProcess == null)
+                return;
+
+            PortVM.FilterByPid(SelectedProcess.Pid);
+            IsTreeView = false;
+            SelectedTabIndex = 1;
         }
 
         #region Sorting

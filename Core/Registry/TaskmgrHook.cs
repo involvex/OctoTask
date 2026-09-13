@@ -164,7 +164,7 @@ namespace OctoTask.Core.Registry
         {
             string regContent = $@"Windows Registry Editor Version 5.00
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentControlSet\Control\Image File Execution Options\taskmgr.exe]
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\taskmgr.exe]
 ""Debugger""=""{existingDebuggerValue.Replace(@"\", @"\\")}""
 ";
             File.WriteAllText(BackupFilePath, regContent);
@@ -178,7 +178,7 @@ namespace OctoTask.Core.Registry
                 {
                     string value = line.Substring("\"Debugger\"=".Length).Trim('"');
                     // Unescape .reg format: \\ -> \
-                    return value.Replace("\\", "");
+                    return value.Replace("\\\\", "\\");
                 }
             }
             return null;

@@ -168,7 +168,7 @@ public partial class App : Application
                 if (line.StartsWith("\"Debugger\"=", StringComparison.Ordinal))
                 {
                     debuggerValue = line.Substring("\"Debugger\"=".Length).Trim('"');
-                    debuggerValue = debuggerValue.Replace("\\", ""); // Undo .reg escaping
+                    debuggerValue = debuggerValue.Replace("\\\\", "\\"); // Undo .reg escaping
                     break;
                 }
             }

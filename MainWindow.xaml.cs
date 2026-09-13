@@ -31,7 +31,19 @@ public partial class MainWindow : Window
 
         Loaded += OnLoaded;
         StateChanged += OnStateChanged;
+        Activated += OnActivated;
         Closed += OnClosed;
+    }
+
+    private DateTime _lastActivatedRefresh = DateTime.MinValue;
+
+    private void OnActivated(object? sender, EventArgs e)
+    {
+        if ((DateTime.UtcNow - _lastActivatedRefresh).TotalSeconds >= 5)
+        {
+            _lastActivatedRefresh = DateTime.UtcNow;
+            _viewModel?.RefreshProcesses();
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -67,7 +79,7 @@ public partial class MainWindow : Window
         {
             if (MainTabControl.SelectedIndex == 1)
             {
-                _viewModel.PortVM.Refresh();
+                _ = _viewModel.PortVM.Refresh();
             }
         }
 
@@ -117,6 +129,8 @@ public partial class MainWindow : Window
         string tooltip = _settings.TrayDisplayMode == TrayDisplayMode.Cpu
             ? $"OctoTask — CPU: {percentage:F1}%"
             : $"OctoTask — RAM: {_viewModel.SystemRamDisplay}";
+
+        tooltip += $" | {_viewModel.Processes.Count} processes";
 
         _trayIcon.UpdateIcon(newIcon, tooltip);
 

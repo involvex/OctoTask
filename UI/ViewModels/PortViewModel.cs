@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Threading;
 using OctoTask.Core.Models;
@@ -23,6 +24,8 @@ namespace OctoTask.UI.ViewModels
         private DateTime _lastRefresh = DateTime.MinValue;
 
         public ObservableCollection<ConnectionInfo> Connections { get; } = new();
+
+        private readonly List<ConnectionInfo> _allConnections = new();
 
         public ICommand RefreshCommand { get; }
         public ICommand ClearFilterCommand { get; }
@@ -81,21 +84,31 @@ namespace OctoTask.UI.ViewModels
 
         public bool CanClearFilter => !string.IsNullOrEmpty(_portFilter);
         public bool CanGoToProcess => SelectedConnection?.Pid > 0;
+        public bool CanGoToPorts => SelectedProcessPid > 0;
+
+        public int SelectedProcessPid { get; private set; }
 
         // Fired when user wants to jump to a process — MainWindow listens to this
         public event Action<int>? GoToProcessRequested;
 
+        public void FilterByPid(int pid)
+        {
+            SelectedProcessPid = pid;
+            OnPropertyChanged(nameof(CanGoToPorts));
+            _ = Refresh();
+        }
+
         public PortViewModel()
         {
-            RefreshCommand = new RelayCommand(_ => Refresh(), _ => !IsBusy);
+            RefreshCommand = new RelayCommand(_ => { _ = Refresh(); }, _ => !IsBusy);
             ClearFilterCommand = new RelayCommand(_ => PortFilter = string.Empty, _ => CanClearFilter);
 
             _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-            _refreshTimer.Tick += (_, _) => Refresh();
+            _refreshTimer.Tick += async (_, _) => await Refresh();
             _refreshTimer.IsEnabled = IsAutoRefreshEnabled;
         }
 
-        public void Refresh()
+        public async Task Refresh()
         {
             if (IsBusy)
                 return;
@@ -105,36 +118,39 @@ namespace OctoTask.UI.ViewModels
                 IsBusy = true;
                 StatusText = "Loading connections...";
 
-                var allConnections = NetworkInterop.GetAllConnections();
+                var allConnections = await Task.Run(() => NetworkInterop.GetAllConnections());
 
-                // Cache process names to avoid duplicate Process.GetProcessById calls
                 var processCache = new Dictionary<int, string>();
-                foreach (var conn in allConnections)
+                await Task.Run(() =>
                 {
-                    if (conn.Pid > 0 && !processCache.ContainsKey(conn.Pid))
+                    foreach (var conn in allConnections)
                     {
-                        try
+                        if (conn.Pid > 0 && !processCache.ContainsKey(conn.Pid))
                         {
-                            using var proc = System.Diagnostics.Process.GetProcessById(conn.Pid);
-                            processCache[conn.Pid] = proc.ProcessName;
-                        }
-                        catch
-                        {
-                            processCache[conn.Pid] = $"PID {conn.Pid}";
+                            try
+                            {
+                                using var proc = System.Diagnostics.Process.GetProcessById(conn.Pid);
+                                processCache[conn.Pid] = proc.ProcessName;
+                            }
+                            catch
+                            {
+                                processCache[conn.Pid] = $"PID {conn.Pid}";
+                            }
                         }
                     }
-                }
+                });
 
-                // Update process names from cache
+                Connections.Clear();
                 foreach (var conn in allConnections)
                 {
                     if (conn.Pid > 0 && processCache.TryGetValue(conn.Pid, out string? name))
                         conn.ProcessName = name;
+                    Connections.Add(conn);
                 }
 
-                Connections.Clear();
+                _allConnections.Clear();
                 foreach (var conn in allConnections)
-                    Connections.Add(conn);
+                    _allConnections.Add(conn);
 
                 _lastRefresh = DateTime.Now;
                 ApplyFilters();
@@ -161,9 +177,34 @@ namespace OctoTask.UI.ViewModels
 
         private void ApplyFilters()
         {
-            // Filtering is done via CollectionView in the control
-            // For now, we filter by rebuilding the visible set
-            // The actual filtering happens in the XAML CollectionViewSource
+            var filtered = new List<ConnectionInfo>();
+
+            foreach (var conn in _allConnections)
+            {
+                if (_protocolFilter != "All" && conn.Protocol.ToString() != _protocolFilter)
+                    continue;
+
+                if (SelectedProcessPid > 0 && conn.Pid != SelectedProcessPid)
+                    continue;
+
+                if (!string.IsNullOrWhiteSpace(_portFilter))
+                {
+                    string filter = _portFilter.ToLowerInvariant();
+                    bool match = conn.LocalPort.ToString().Contains(filter) ||
+                                 conn.RemotePort.ToString().Contains(filter) ||
+                                 conn.ProcessName.ToLowerInvariant().Contains(filter) ||
+                                 conn.LocalAddress.Contains(filter) ||
+                                 conn.RemoteAddress.Contains(filter);
+                    if (!match)
+                        continue;
+                }
+
+                filtered.Add(conn);
+            }
+
+            Connections.Clear();
+            foreach (var conn in filtered)
+                Connections.Add(conn);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

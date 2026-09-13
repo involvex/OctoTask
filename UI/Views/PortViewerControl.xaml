@@ -112,7 +112,17 @@
                   RowHeight="28"
                   FontFamily="Cascadia Mono, Consolas, Courier New"
                   FontSize="12"
-                  MouseDoubleClick="OnDataGridDoubleClick">
+                  MouseDoubleClick="OnDataGridDoubleClick"
+                  ContextMenuOpening="OnContextMenuOpening">
+
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Copy Address" Click="OnCopyAddress"/>
+                    <MenuItem Header="Copy Port" Click="OnCopyPort"/>
+                    <MenuItem Header="Copy Protocol" Click="OnCopyProtocol"/>
+                    <MenuItem Header="Copy Process Name" Click="OnCopyProcessName"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Protocol"
