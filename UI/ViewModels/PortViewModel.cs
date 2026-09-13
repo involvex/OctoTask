@@ -22,6 +22,8 @@ namespace OctoTask.UI.ViewModels
         private bool _isBusy;
         private string _statusText = string.Empty;
         private DateTime _lastRefresh = DateTime.MinValue;
+        private DateTime _lastBandwidthSnapshot = DateTime.MinValue;
+        private readonly Dictionary<int, int> _pidConnectionSnapshot = new();
 
         public ObservableCollection<ConnectionInfo> Connections { get; } = new();
 
@@ -153,6 +155,7 @@ namespace OctoTask.UI.ViewModels
                     _allConnections.Add(conn);
 
                 _lastRefresh = DateTime.Now;
+                ComputeBandwidth(allConnections);
                 ApplyFilters();
 
                 int tcpCount = allConnections.Count(c => c.Protocol == ConnectionProtocol.TCP);
@@ -173,6 +176,46 @@ namespace OctoTask.UI.ViewModels
         {
             if (SelectedConnection?.Pid > 0)
                 GoToProcessRequested?.Invoke(SelectedConnection.Pid);
+        }
+
+        private void ComputeBandwidth(List<ConnectionInfo> connections)
+        {
+            var now = DateTime.Now;
+            var pidCounts = new Dictionary<int, int>();
+            foreach (var conn in connections)
+            {
+                if (conn.Pid > 0)
+                    pidCounts[conn.Pid] = pidCounts.GetValueOrDefault(conn.Pid) + 1;
+            }
+
+            if (_lastBandwidthSnapshot == DateTime.MinValue || (now - _lastBandwidthSnapshot).TotalSeconds < 1)
+            {
+                foreach (var conn in connections)
+                    conn.NetworkRate = null;
+            }
+            else
+            {
+                double elapsed = (now - _lastBandwidthSnapshot).TotalSeconds;
+                foreach (var kvp in pidCounts)
+                {
+                    int previous = _pidConnectionSnapshot.GetValueOrDefault(kvp.Key);
+                    int delta = kvp.Value - previous;
+                    double rate = delta / elapsed;
+                    string rateStr = rate switch
+                    {
+                        > 0 => $"+{rate:F0}/s",
+                        < 0 => $"{rate:F0}/s",
+                        _ => "0/s"
+                    };
+                    foreach (var conn in connections.Where(c => c.Pid == kvp.Key))
+                        conn.NetworkRate = rateStr;
+                }
+            }
+
+            _pidConnectionSnapshot.Clear();
+            foreach (var kvp in pidCounts)
+                _pidConnectionSnapshot[kvp.Key] = kvp.Value;
+            _lastBandwidthSnapshot = now;
         }
 
         private void ApplyFilters()

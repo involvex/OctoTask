@@ -178,6 +178,10 @@
                                     Binding="{Binding ProcessName}"
                                     SortMemberPath="ProcessName"
                                     Width="*"/>
+                <DataGridTextColumn Header="Network"
+                                    Binding="{Binding NetworkRate}"
+                                    SortMemberPath="NetworkRate"
+                                    Width="80"/>
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

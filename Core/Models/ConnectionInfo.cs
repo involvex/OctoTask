@@ -113,6 +113,8 @@ namespace OctoTask.Core.Models
 
         public string PidDisplay => _pid > 0 ? _pid.ToString() : "-";
 
+        public string? NetworkRate { get; set; }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
