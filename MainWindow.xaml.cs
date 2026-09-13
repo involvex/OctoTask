@@ -96,6 +96,11 @@ public partial class MainWindow : Window
             _trayIcon.AddIcon(helper.Handle, _currentIcon, "OctoTask");
             _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
             _trayIcon.RightClick += (_, _) => ShowTrayContextMenu();
+
+            GlobalHotKey.Register(this,
+                _viewModel.RefreshCommand,
+                _viewModel.KillProcessCommand,
+                _viewModel.SuspendProcessCommand);
         }
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -202,6 +207,7 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         SaveColumnLayout();
+        GlobalHotKey.UnregisterAll(this);
         _trayIcon.RemoveIcon();
         if (_currentIcon != IntPtr.Zero)
         {
