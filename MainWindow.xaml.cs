@@ -163,30 +163,66 @@ public partial class MainWindow : Window
         }));
     }
 
-    private void ShowTrayContextMenu()
-    {
-        Dispatcher.BeginInvoke(new Action(() =>
+        private void ShowTrayContextMenu()
         {
-            var menu = new ContextMenu();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var menu = new ContextMenu();
 
-            var showItem = new MenuItem { Header = "Show OctoTask" };
-            showItem.Click += (_, _) => RestoreFromTray();
-            menu.Items.Add(showItem);
+                var toggleItem = new MenuItem { Header = "Toggle Window" };
+                toggleItem.Click += (_, _) => ToggleWindow();
+                menu.Items.Add(toggleItem);
 
-            var settingsItem = new MenuItem { Header = "Tray Settings..." };
-            settingsItem.Click += (_, _) => OpenTraySettings();
-            menu.Items.Add(settingsItem);
+                menu.Items.Add(new Separator());
 
-            menu.Items.Add(new Separator());
+                var networkItem = new MenuItem { Header = "Network View" };
+                networkItem.Click += (_, _) => ShowNetworkView();
+                menu.Items.Add(networkItem);
 
-            var exitItem = new MenuItem { Header = "Exit" };
-            exitItem.Click += (_, _) => Close();
-            menu.Items.Add(exitItem);
+                var settingsItem = new MenuItem { Header = "Settings" };
+                settingsItem.Click += (_, _) => OpenTraySettings();
+                menu.Items.Add(settingsItem);
 
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-            menu.IsOpen = true;
-        }));
-    }
+                menu.Items.Add(new Separator());
+
+                var exitItem = new MenuItem { Header = "Exit" };
+                exitItem.Click += (_, _) => Close();
+                menu.Items.Add(exitItem);
+
+                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+                menu.IsOpen = true;
+            }));
+        }
+
+        private void ToggleWindow()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (Visibility == Visibility.Visible && WindowState != WindowState.Minimized)
+                {
+                    Hide();
+                }
+                else
+                {
+                    Show();
+                    WindowState = WindowState.Normal;
+                    Activate();
+                    Focus();
+                }
+            }));
+        }
+
+        private void ShowNetworkView()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                Activate();
+                _viewModel.SelectedTabIndex = 1;
+                _ = _viewModel.PortVM.Refresh();
+            }));
+        }
 
     private void OpenTraySettings()
     {

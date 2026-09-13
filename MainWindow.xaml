@@ -22,7 +22,6 @@
     </Window.InputBindings>
 
     <Window.Resources>
-        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
         <conv:BoolToVisibilityInvertedConverter x:Key="BoolToVisibilityInverted"/>
         <conv:SearchHighlightConverter x:Key="SearchHighlightConverter"/>
 
@@ -399,6 +398,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>  <!-- Dashboard -->
+            <RowDefinition Height="Auto"/>  <!-- Resource Graph -->
             <RowDefinition Height="Auto"/>  <!-- Toolbar -->
             <RowDefinition Height="*"/>     <!-- Main content -->
             <RowDefinition Height="Auto"/>  <!-- Status bar -->
@@ -439,6 +439,9 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <!-- Resource Graph -->
+        <views:ResourceGraphView Grid.Row="1" DataContext="{Binding ResourceGraph}" Margin="0,1,0,0"/>
 
         <!-- Toolbar -->
         <ToolBar Grid.Row="1" Background="{StaticResource SurfaceBrush}" Margin="0,0,0,1">

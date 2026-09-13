@@ -6,7 +6,7 @@
              FontFamily="Cascadia Mono, Consolas, Courier New">
 
     <UserControl.Resources>
-        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+
     </UserControl.Resources>
 
     <DockPanel>

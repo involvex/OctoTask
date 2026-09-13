@@ -20,7 +20,7 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 | 3 | CPU Usage Column | Per-process CPU % via TotalProcessorTime sampling |
 | 4 | Process Details Pane | Side panel with basic info, owner, parent, file info, modules, environment variables |
 | 5 | System Resource Gauges | CPU and RAM progress bars in header dashboard |
-| — | System Tray Icon | Dynamic icon with progress arc, configurable CPU/RAM display, minimize-to-tray, settings dialog |
+| — | System Tray Icon | Dynamic icon with progress arc, configurable CPU/RAM display, minimize-to-tray, settings dialog, toggle window, network view |
 | — | Process Tree View | Hierarchical parent-child view with toggle button (BuildProcessTree now called in refresh) |
 | — | Process Suspend / Resume | NtSuspendProcess / NtResumeProcess via P/Invoke |
 | — | Export CSV / JSON | SaveFileDialog with formatted export |
@@ -44,8 +44,8 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 **How**: Query `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, `HKLM\...Run`, Task Scheduler API (`Microsoft.Win32.TaskScheduler` NuGet), and `Startup` folder.
 
 ### 2. System Resource History Graphs
-**Status**: Gauges done, history graphs pending
-**Description**: Add live line charts showing CPU, Memory, Disk, and Network usage over time.
+**Status**: Done
+**Description**: Live line charts showing CPU and Memory usage over the last 60 seconds. Collapsible panel below the dashboard.
 **Why**: Gauges show current state — graphs show trends and spikes.
 **How**: Use WPF `Polyline` in a `Canvas` or lightweight charting. Poll `PerformanceCounter` every 500ms-1s.
 

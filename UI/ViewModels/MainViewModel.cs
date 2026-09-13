@@ -44,18 +44,22 @@ namespace OctoTask.UI.ViewModels
         private readonly ConcurrentDictionary<int, int> _parentPidCache;
         private DateTime _parentPidCacheExpiry;
         private readonly PortViewModel _portVM;
+        private readonly ResourceGraphViewModel _resourceGraph;
 
         private const int ParentPidCacheSeconds = 60;
 
         public ObservableCollection<ProcessInfo> Processes { get; }
         public ObservableCollection<ProcessInfo> ProcessTree { get; } = new();
         public PortViewModel PortVM => _portVM;
+        public ResourceGraphViewModel ResourceGraph => _resourceGraph;
 
         public bool IsTreeView
         {
             get => _isTreeView;
             set { _isTreeView = value; OnPropertyChanged(); }
         }
+
+        public bool IsResourceGraphExpanded => _resourceGraph.IsExpanded;
 
         public int SelectedTabIndex
         {
@@ -253,6 +257,13 @@ namespace OctoTask.UI.ViewModels
 
             _portVM = new PortViewModel();
             _portVM.GoToProcessRequested += SelectProcessByPid;
+
+            _resourceGraph = new ResourceGraphViewModel(() => SystemCpuUsage, () => SystemRamUsage);
+            _resourceGraph.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ResourceGraphViewModel.IsExpanded))
+                    OnPropertyChanged(nameof(IsResourceGraphExpanded));
+            };
         }
 
         private void ApplyFilter()
@@ -286,6 +297,8 @@ namespace OctoTask.UI.ViewModels
             {
                 IsBusy = true;
                 StatusText = "Refreshing processes...";
+
+                _resourceGraph.Start();
 
                 var elapsed = _cpuStopwatch.Elapsed;
                 var snapshot = await Task.Run(() => RefreshProcessesInternal(elapsed));
