@@ -2,12 +2,12 @@
 
 ## Current State Overview
 
-OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .NET 10. It replaces the default Task Manager via the Image File Execution Options (IFEO) registry hook, reads process information directly from the PEB via P/Invoke, includes a full MVVM architecture with auto-refresh, column sorting, process termination, a system tray icon with dynamic usage display, and a settings dialog. Installer scripts and a restore mechanism are included.
+OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .NET 10. It replaces the default Task Manager via the Image File Execution Options (IFEO) registry hook, reads process information directly from the PEB via P/Invoke, includes a full MVVM architecture with auto-refresh, column sorting, process termination, suspend/resume, a system tray icon with dynamic usage display, a process tree view, network monitoring with bandwidth tracking, and a settings dialog.
 
 ### Architecture Summary
 - **UI Layer**: WPF with custom dark theme (`#0f172a` terminal aesthetic)
-- **Native Layer**: `ProcessInterop.cs` (P/Invoke for `NtQueryInformationProcess`, `ReadProcessMemory`), `DwmInterop.cs` (dark title bar), `TrayIconService.cs` (system tray), `TrayIconRenderer.cs` (dynamic icon generation)
-- **Core Layer**: `ProcessInfo`/`ProcessDetails` models, `TaskmgrHook` registry management, `AppSettings` persistence
+- **Native Layer**: `ProcessInterop.cs` (P/Invoke), `DwmInterop.cs` (dark title bar), `NetworkInterop.cs` (TCP/UDP table), `TrayIconService.cs` (system tray), `TrayIconRenderer.cs` (dynamic icon generation), `GlobalHotKey.cs` (system-wide hotkeys)
+- **Core Layer**: `ProcessInfo`/`ProcessDetails`/`ConnectionInfo` models, `TaskmgrHook` registry management, `AppSettings` persistence
 - **Deployment**: PowerShell scripts for install/uninstall/restore with `.reg` backup
 
 ---
@@ -16,15 +16,22 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 2 | Search / Filter Bar | Live filtering by name, PID, executable path, command line |
+| 2 | Search / Filter Bar | Live filtering by name, PID, executable path, command line with debounce |
 | 3 | CPU Usage Column | Per-process CPU % via TotalProcessorTime sampling |
 | 4 | Process Details Pane | Side panel with basic info, owner, parent, file info, modules, environment variables |
 | 5 | System Resource Gauges | CPU and RAM progress bars in header dashboard |
 | — | System Tray Icon | Dynamic icon with progress arc, configurable CPU/RAM display, minimize-to-tray, settings dialog |
-| — | Process Tree View | Hierarchical parent-child view with toggle button |
+| — | Process Tree View | Hierarchical parent-child view with toggle button (BuildProcessTree now called in refresh) |
 | — | Process Suspend / Resume | NtSuspendProcess / NtResumeProcess via P/Invoke |
 | — | Export CSV / JSON | SaveFileDialog with formatted export |
 | — | App Icon & Branding | Multi-size .ico embedded in EXE and window title bar |
+| — | Search Highlight | Matched text highlighted brown in search columns via SearchHighlightConverter |
+| — | Refresh on Focus | Auto-refresh when window activated (5s cooldown to avoid spam) |
+| — | Port Search Filter | Filter by port, protocol, process name, address with debounce |
+| — | Context Menu: Go to Ports | Right-click process → switch to Ports tab filtered by PID |
+| — | Context Menu: Copy Port/Address | Copy connection details from Ports tab context menu |
+| — | Tray Icon Tooltip | Shows CPU/RAM + process count |
+| — | Global Keyboard Shortcuts | Ctrl+Shift+R (Refresh), Ctrl+Shift+K (Kill), Ctrl+Shift+S (Suspend) |
 
 ---
 
@@ -42,11 +49,11 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 **Why**: Gauges show current state — graphs show trends and spikes.
 **How**: Use WPF `Polyline` in a `Canvas` or lightweight charting. Poll `PerformanceCounter` every 500ms-1s.
 
-### 3. Network Monitoring per Process
-**Status**: Not started
-**Description**: Show network activity (send/receive bytes per second) per process.
+### 3. Network Bandwidth per Process
+**Status**: Done
+**Description**: Show network activity (connection rate per second) per process in the Ports tab.
 **Why**: Network-based malware or runaway downloads are common suspects.
-**How**: P/Invoke `GetExtendedTcpTable` and `GetExtendedUdpTable` from `iphlpapi.dll`, or use `System.Net.NetworkInformation` for global stats. Map connections to PIDs.
+**How**: Snapshot TCP connections at each refresh, compute per-PID connection rate (connections/sec) from deltas, display in Ports tab DataGrid.
 
 ---
 
@@ -59,10 +66,10 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 **How**: Use `DataGridColumn Visibility` bindings, allow drag-drop reordering, persist column layout in settings.
 
 ### 5. Keyboard Shortcuts
-**Status**: Partially done (Ctrl+R, Ctrl+K, Ctrl+F, Ctrl+S)
-**Description**: Add global hotkeys for common actions.
+**Status**: Done (Ctrl+R, Ctrl+K, Ctrl+F, Ctrl+S in-window + Ctrl+Shift+R/K/S global)
+**Description**: Global hotkeys for common actions implemented.
 **Why**: Terminal-oriented users expect keyboard-first workflows.
-**How**: WPF `InputBinding`s within the window. Consider `RegisterHotKey` for global scope.
+**How**: `GlobalHotKey.cs` in Core/Native using `RegisterHotKey` P/Invoke.
 
 ### 6. Dark/Light Theme Toggle
 **Status**: Not started
@@ -82,13 +89,7 @@ OctoTask is a WPF-based dark-mode process manager targeting Windows, built on .N
 
 Low-effort, high-value improvements that can be done in a single session.
 
-| # | Feature | Effort | Value |
-|---|---------|--------|-------|
-| Q1 | Keyboard shortcuts | ~30 min | High |
-| Q2 | Column layout persistence | ~1 hr | High |
-| Q3 | Crash log rotation | ~20 min | Medium |
-| Q4 | Start minimized to tray (`--minimized`) | ~15 min | Low |
-| Q5 | Refresh on focus restore | ~10 min | Low |
+All quick wins (Q1–Q6) are completed.
 
 ---
 
